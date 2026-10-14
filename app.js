@@ -4,6 +4,8 @@
   const el = $('melodyCanvas'), viewport=$('canvasScroller');
   const CTX = window.AudioContext||window.webkitAudioContext;
   const ROOTS=['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+  // Fixed-do display names; pitch values, chord symbols, playback and MIDI remain unchanged.
+  const SOLFEGE=['ド','ド♯','レ','ミ♭','ミ','ファ','ファ♯','ソ','ラ♭','ラ','シ♭','シ'];
   const MAJOR=[0,2,4,5,7,9,11],MINOR=[0,2,3,5,7,8,10];
 
   // All presets are original, procedural starting shapes; none are transcriptions of songs.
@@ -195,7 +197,7 @@
   }
   
   const initialNames=['Aメロ','Bメロ','サビ','ラスサビ'];
-  const st={title:'新しい曲',bpm:100,beats:4,sound:'piano',volume:85,metro:true,chordAlong:true,snap:true,zoom:1,grid:.125,sections:[],selectedSection:null};
+  const st={title:'新しい曲',bpm:100,beats:4,sound:'piano',volume:85,metro:true,chordAlong:true,snap:true,zoom:1,grid:.125,pitchNotation:'letter',sections:[],selectedSection:null};
   let groupMode=false,groupIds=new Set(),marquee=null;
   const NOTE_GRID_VALUES=[1,.5,.25,.125,.0625];
   const snapGrid=x=>Math.round((x+1e-9)/st.grid)*st.grid;
@@ -430,11 +432,18 @@
   const makeId=(kind='n')=>kind+(uid++);
   const num=(x,lo,hi,otherwise=lo)=>Math.min(hi,Math.max(lo,Number.isFinite(Number(x))?Number(x):otherwise));
   const roundBeat=x=>Math.round(x*4)/4;
-  const noteName=m=>ROOTS[((m%12)+12)%12]+(Math.floor(m/12)-1);
+  const rootName=i=>(st.pitchNotation==='solfege'?SOLFEGE:ROOTS)[((i%12)+12)%12];
+  const noteName=m=>rootName(m)+(Math.floor(m/12)-1);
+  function refreshPitchNotation(){
+    $('pitchNotation').value=st.pitchNotation;
+    for(const option of $('keyRoot').options)option.textContent=rootName(Number(option.value));
+    for(const option of $('notePitch').options)option.textContent=noteName(Number(option.value));
+    $('jumpC4').textContent=st.pitchNotation==='solfege'?'● 中央のド（ド4）':'● 中央のド C4';
+  }
   const getSection=()=>st.sections.find(s=>s.id===st.selectedSection)||st.sections[0];
   const getNote=()=>getSection()?.notes.find(n=>n.id===selectedNote);
   const copy=o=>JSON.parse(JSON.stringify(o));
-  const projectSnapshot=()=>({version:1,title:st.title,bpm:st.bpm,beats:st.beats,sound:st.sound,volume:st.volume,metro:st.metro,chordAlong:st.chordAlong,snap:st.snap,zoom:st.zoom,grid:st.grid,sections:copy(st.sections),selectedSection:st.selectedSection});
+  const projectSnapshot=()=>({version:1,title:st.title,bpm:st.bpm,beats:st.beats,sound:st.sound,volume:st.volume,metro:st.metro,chordAlong:st.chordAlong,snap:st.snap,zoom:st.zoom,grid:st.grid,pitchNotation:st.pitchNotation,sections:copy(st.sections),selectedSection:st.selectedSection});
   function message(msg,ms=3500){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),ms);}
   function saveSoon(){ $('saveStatus').textContent='変更を保存中…';clearTimeout(saveTimer);saveTimer=setTimeout(()=>{try{localStorage.setItem(LOCAL_KEY,JSON.stringify(projectSnapshot()));$('saveStatus').textContent='この端末に自動保存済み';}catch(e){$('saveStatus').textContent='保存できません（JSONで保存してください）';message('端末保存に失敗しました。プロジェクト保存でファイルを書き出してください。');}},400);}
   function checkpoint(){const x=JSON.stringify(projectSnapshot());if(history[historyIndex]===x)return;history=history.slice(0,historyIndex+1);history.push(x);if(history.length>45)history.shift();historyIndex=history.length-1;updateHistoryButtons();saveSoon();}
@@ -443,7 +452,7 @@
   function makeSection(name,idx){return{id:makeId('s'),name,lyrics:'',reading:'',notes:[],root:0,mode:'major',chords:[],harmonies:[],chordFeel:'sustain',chordName:'',gap:0,color:SECTION_COLORS[idx%SECTION_COLORS.length]};}
   function initDemo(){st.sections=initialNames.map(makeSection);st.sections[0].lyrics='今';st.sections[0].reading='いま';st.sections[0].notes=[{id:makeId(),kana:'い',pitch:64,start:0,dur:1},{id:makeId(),kana:'ま',pitch:67,start:1,dur:1.5}];st.selectedSection=st.sections[0].id;selectedNote=st.sections[0].notes[0].id;}
   function loadData(data){if(!data||data.version!==1||!Array.isArray(data.sections)||data.sections.length>75)throw Error('対応するMelody Atelierのプロジェクトではありません。');
-    st.title=String(data.title||'新しい曲').slice(0,80);st.bpm=num(data.bpm,40,240,100);st.beats=[3,4,6].includes(+data.beats)?+data.beats:4;st.sound=['warm','piano','pure'].includes(data.sound)?data.sound:'piano';st.volume=num(data.volume,0,100,65);st.metro=data.metro!==false;st.chordAlong=data.chordAlong!==false;st.snap=data.snap!==false;st.zoom=num(data.zoom,.25,5,1);st.grid=NOTE_GRID_VALUES.includes(+data.grid)?+data.grid:.125;
+    st.title=String(data.title||'新しい曲').slice(0,80);st.bpm=num(data.bpm,40,240,100);st.beats=[3,4,6].includes(+data.beats)?+data.beats:4;st.sound=['warm','piano','pure'].includes(data.sound)?data.sound:'piano';st.volume=num(data.volume,0,100,65);st.metro=data.metro!==false;st.chordAlong=data.chordAlong!==false;st.snap=data.snap!==false;st.zoom=num(data.zoom,.25,5,1);st.grid=NOTE_GRID_VALUES.includes(+data.grid)?+data.grid:.125;st.pitchNotation=data.pitchNotation==='solfege'?'solfege':'letter';
     st.sections=data.sections.map((s,i)=>({id:String(s.id||makeId('s')),name:String(s.name||'パート').slice(0,45),lyrics:String(s.lyrics||'').slice(0,12000),reading:String(s.reading||'').slice(0,12000),root:num(s.root,0,11),mode:s.mode==='minor'?'minor':'major',gap:num(s.gap,0,64),lastMood:String(s.lastMood||'').slice(0,100),chords:normalizeSteps(s.chords),harmonies:Array.isArray(s.harmonies)?s.harmonies.slice(0,512).map(safeAutoChord):[],chordFeel:CHORD_FEELS.some(f=>f.id===s.chordFeel)?s.chordFeel:'sustain',chordName:String(s.chordName||'').slice(0,55),color:SECTION_COLORS[i%SECTION_COLORS.length],notes:Array.isArray(s.notes)?s.notes.slice(0,3000).map(n=>({id:String(n.id||makeId()),kana:String(n.kana||'ラ').slice(0,8),pitch:num(n.pitch,MIDI_MIN,MIDI_MAX),start:num(n.start,0,MAX_SECTION_BEATS),dur:num(n.dur,.0625,32)})):[]}));
     if(!st.sections.length)st.sections=[makeSection('Aメロ',0)];const ids=st.sections.flatMap(s=>[s.id,...s.notes.map(n=>n.id)]);uid=Math.max(uid,...ids.map(x=>Number(String(x).replace(/^[^0-9]*/,''))||0))+1;
     groupIds.clear();groupMode=false;st.selectedSection=st.sections.some(s=>s.id===data.selectedSection)?data.selectedSection:st.sections[0].id;selectedNote=getSection().notes[0]?.id||null;syncInputs();}
@@ -464,9 +473,9 @@
   function renderSections(){const dest=$('sectionList');dest.replaceChildren();st.sections.forEach((s,i)=>{const card=document.createElement('div');card.className='sectionCard'+(s.id===st.selectedSection?' selected':'');card.dataset.id=s.id;card.innerHTML=`<div class="sectionMain"><div class="sectionLabel" data-action="select"><span class="sectionBadge" style="background:${s.color}"></span><strong></strong></div><div class="sectionBtns"><button data-action="up" title="上に移動">↑</button><button data-action="down" title="下に移動">↓</button><button data-action="copy" title="複製">⧉</button><button data-action="delete" title="削除" class="trash">×</button></div></div><div class="sectionMeta"></div>`;card.querySelector('strong').textContent=s.name;card.querySelector('.sectionMeta').textContent=`${s.notes.length}音 ・ ${getLength(s)}拍 ・ ${ROOTS[s.root]} ${s.mode==='minor'?'マイナー':'メジャー'}${s.lastMood?' · '+s.lastMood:''}`;dest.append(card);});}
   function renderChips(){const s=getSection(),m=parseMora(s.reading);const dst=$('moraChips');dst.replaceChildren();m.slice(0,80).forEach(k=>{const chip=document.createElement('span');chip.className='moraChip';chip.innerHTML='<b></b><small></small>';chip.querySelector('b').textContent=k;chip.querySelector('small').textContent=romaji(k);dst.append(chip);});if(m.length>80){dst.append(document.createTextNode(` 他 ${m.length-80}音`));}if(!m.length){dst.textContent='よみがなを入力すると、ここに音が並びます。';}const d=tryRead(s.lyrics);$('readWarning').textContent=d.unknown.length?'漢字の読みが確定できない箇所があります。よみがなを入力してください。':'';}
   function renderArrangement(){const parent=$('arrangement');parent.replaceChildren();for(const s of st.sections){const d=document.createElement('div');d.className='arrangeBlock'+(s.id===st.selectedSection?' sel':'');d.dataset.id=s.id;d.innerHTML='<strong></strong><small></small><div class="gapCtrl"><span>次までの間</span><input type="number" min="0" max="64" step="0.25" aria-label="次のブロックまでの空白（拍）"><span>拍</span></div>';d.querySelector('strong').textContent=s.name;d.querySelector('small').textContent=`${getLength(s)}拍 · ${ROOTS[s.root]} ${s.mode==='minor'?'m':'Maj'}`;d.querySelector('input').value=s.gap;d.querySelector('input').disabled=!getLength(s);d.querySelector('strong').onclick=()=>selectSection(s.id);parent.append(d);}}
-  function renderKeyControls(){const s=getSection();$('keyRoot').value=s.root;$('keyMode').value=s.mode;$('keyInfo').textContent=`${ROOTS[s.root]} ${s.mode==='major'?'メジャー':'マイナー'} （ブロック別に転調可）`;$('noteCount').textContent=`音の数：${s.notes.length}`;$('durationInfo').textContent=`長さ：${getLength(s)}拍`;}
+  function renderKeyControls(){const s=getSection();$('keyRoot').value=s.root;$('keyMode').value=s.mode;$('keyInfo').textContent=`${rootName(s.root)} ${s.mode==='major'?'メジャー':'マイナー'} （ブロック別に転調可）`;$('noteCount').textContent=`音の数：${s.notes.length}`;$('durationInfo').textContent=`長さ：${getLength(s)}拍`;}
   function renderInspector(){const n=getNote(),disabled=!n;$('nudgeBeatLeft').textContent=`← ${st.grid}拍`;$('nudgeBeatRight').textContent=`${st.grid}拍 →`;renderGroupStatus();$('selectedNoteTitle').textContent=n?`「${n.kana} / ${romaji(n.kana)}」 — ${noteName(n.pitch)}`:'空白をタップして音を追加';for(const id of ['notePitch','noteStart','noteDur','deleteNote','playNote','playFromSelected','playFromInspector'])$(id).disabled=disabled;if(n){$('noteStart').step=String(st.grid);$('noteDur').step=String(st.grid);$('notePitch').value=n.pitch;$('noteStart').value=n.start;$('noteDur').value=n.dur;}else{$('noteStart').value='';$('noteDur').value='';}}
-  function renderAll(){syncInputs();$('gridStep').value=String(st.grid);renderGroupStatus();renderSections();renderChips();renderArrangement();renderKeyControls();renderInspector();resizeCanvas();updateZoom();renderChords();renderAutoHarmony();updateHistoryButtons();const secs=timeline().totalBeats*60/st.bpm;$('timeDisplay').textContent=`00:00 / ${stamp(secs)}`;$('songLength').textContent=`曲全体 ${stamp(secs)} / ガイド音声は最大15:00`;}
+  function renderAll(){syncInputs();refreshPitchNotation();$('gridStep').value=String(st.grid);renderGroupStatus();renderSections();renderChips();renderArrangement();renderKeyControls();renderInspector();resizeCanvas();updateZoom();renderChords();renderAutoHarmony();updateHistoryButtons();const secs=timeline().totalBeats*60/st.bpm;$('timeDisplay').textContent=`00:00 / ${stamp(secs)}`;$('songLength').textContent=`曲全体 ${stamp(secs)} / ガイド音声は最大15:00`;}
   function selectSection(id){if(!st.sections.some(s=>s.id===id))return;groupIds.clear();marquee=null;st.selectedSection=id;selectedNote=getSection().notes[0]?.id||null;syncInputs();renderSections();renderChips();renderArrangement();renderKeyControls();renderInspector();resizeCanvas(true);renderChords();autoRange.sectionId=null;autoCandidates=[];renderAutoHarmony();saveSoon();}
   function sectionReorder(id,dir){const i=st.sections.findIndex(s=>s.id===id),j=i+dir;if(i<0||j<0||j>=st.sections.length)return;[st.sections[i],st.sections[j]]=[st.sections[j],st.sections[i]];checkpoint();renderAll();}
   function sectionDuplicate(id){const src=st.sections.find(s=>s.id===id);if(!src)return;if(st.sections.length>=50)return message('ブロックは最大50個までです。');const old=st.sections.findIndex(s=>s.id===id),s=copy(src);s.id=makeId('s');s.name=src.name+'②';s.notes.forEach(n=>n.id=makeId());st.sections.splice(old+1,0,s);st.selectedSection=s.id;selectedNote=s.notes[0]?.id||null;checkpoint();renderAll();message('歌詞・音程・長さをまとめて複製しました。');}
@@ -561,7 +570,7 @@
     for(let p=lo;p<=hi;p++){
       const y=worldY(p)-3;
       ctx.fillStyle=p===60?'#87662f':[1,3,6,8,10].includes(p%12)?'#2f3449':'#464b60';ctx.fillRect(sx,y,LEFT-4,ROW-1);
-      ctx.textAlign='right';ctx.fillStyle=p===60?'#fff1bd':'#f0edfc';ctx.font=p===60?'bold 12px system-ui':'11px system-ui';ctx.fillText(p===60?'C4 ●':noteName(p),sx+LEFT-11,y+ROW/2);
+      ctx.textAlign='right';ctx.fillStyle=p===60?'#fff1bd':'#f0edfc';ctx.font=p===60?'bold 12px system-ui':'11px system-ui';ctx.fillText(p===60?(st.pitchNotation==='solfege'?'ド4 ●':'C4 ●'):noteName(p),sx+LEFT-11,y+ROW/2);
     }
     ctx.restore();
   }
@@ -819,6 +828,7 @@
     add(0,1,[0xc1,0]);for(const ch of rhythmChords(chordTimelineEvents(p),p)){for(const note of ch.pitches){add(ch.beat,2,[0x91,Math.round(note),62]);add(ch.beat+ch.duration*.9,1,[0x81,Math.round(note),0]);}}
     midiEvents.sort((a,b)=>a.tick-b.tick||a.priority-b.priority);const bytes=[];let last=0;for(const e of midiEvents){bytes.push(...varLen(e.tick-last),...e.data);last=e.tick;}bytes.push(0,0xff,0x2f,0);const track=new Uint8Array(bytes),buff=new ArrayBuffer(14+8+track.length),v=new DataView(buff);const word=(off,s)=>{for(let i=0;i<s.length;i++)v.setUint8(off+i,s.charCodeAt(i));};word(0,'MThd');v.setUint32(4,6);v.setUint16(8,0);v.setUint16(10,1);v.setUint16(12,ppq);word(14,'MTrk');v.setUint32(18,track.length);new Uint8Array(buff,22).set(track);download(new Blob([buff],{type:'audio/midi'}),filename()+'.mid');message('MIDIを書き出しました。音程と長さを対応ソフトに渡せます。');}
   function bindControls(){for(let i=0;i<12;i++){const option=new Option(ROOTS[i],i);$('keyRoot').add(option);}for(let p=MIDI_MAX;p>=MIDI_MIN;p--){$('notePitch').add(new Option(noteName(p),p));}
+    $('pitchNotation').onchange=e=>{st.pitchNotation=e.target.value==='solfege'?'solfege':'letter';refreshPitchNotation();renderKeyControls();renderInspector();$('noteActionMenu').hidden=true;drawCanvas();checkpoint();};
     $('projectTitle').oninput=e=>{st.title=e.target.value.slice(0,80);saveSoon();};$('projectTitle').onchange=checkpoint;
     $('bpm').onchange=e=>{st.bpm=num(e.target.value,40,240,100);e.target.value=st.bpm;checkpoint();renderAll();};$('beats').onchange=e=>{st.beats=Number(e.target.value);checkpoint();renderAll();};$('soundType').onchange=e=>{st.sound=e.target.value;checkpoint();};$('masterVolume').oninput=e=>{st.volume=num(e.target.value,0,100);$('volumeReadout').textContent=st.volume+'%';saveSoon();};$('masterVolume').onchange=checkpoint;$('audioEngine').value=outputMode;$('audioEngine').onchange=e=>{stopPlay();stopChordPreview();releaseNative();outputMode=e.target.value;$('audioStatus').textContent=outputMode==='native'?'音声：音声ファイル方式（iPad向け）':'音声：Web Audio方式（未確認）';message('再生方式を変更しました。「中央のド」で確認してください。');};$('audioStatus').textContent=useNative()?'音声：音声ファイル方式（iPad向け）':'音声：未確認';
     $('metroToggle').onchange=e=>{st.metro=e.target.checked;checkpoint();};$('snapKey').onchange=e=>{st.snap=e.target.checked;checkpoint();};
