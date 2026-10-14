@@ -62,3 +62,18 @@
 #applyDraftToRange{border-color:#77cabc;color:#c5fff1}
 
 .bridge-note{margin:14px 0;padding:14px 18px;color:#ded9ee;line-height:1.65;border-left:3px solid #a899e6}.bridge-note strong{color:#f5f2ff}
+
+/* v0.5.0: full-width stacked lyrics and melody editor. */
+.workspace{display:flex!important;flex-direction:column!important;height:auto!important;min-height:0!important;gap:18px!important;grid-template-columns:none!important}
+.workspace > .lyricsPane,.workspace > .editorPane{width:100%;min-width:0;min-height:0;overflow:visible!important;max-height:none!important;padding:19px 20px}
+.workspace .sectionList{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));align-items:start}
+.workspace .lyricsPane #lyricsInput,.workspace .lyricsPane #readingInput{min-height:96px}
+.graphToolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:12px 0 10px;padding:10px 12px;background:#171e31;border:1px solid #3d4562;border-radius:11px}
+.graphHint{font-size:11px;color:#b9cce0;line-height:1.5}
+.graphNav{display:flex;gap:6px;flex-wrap:wrap}
+.songLength{font-size:11px;color:#93e0cd;white-space:nowrap;font-variant-numeric:tabular-nums}
+.canvasScroller{height:clamp(390px,59dvh,690px)!important;max-width:100%;overflow:auto;position:relative;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.canvasSpace{position:relative;min-width:100%;min-height:100%}
+.canvasSpace canvas{position:sticky;left:0;top:0;display:block;touch-action:none;cursor:grab;z-index:1}
+@media(max-width:780px){.canvasScroller{height:clamp(365px,56dvh,580px)!important}.graphNav{width:100%}}
+@media(max-width:540px){.workspace .sectionList{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.workspace > .lyricsPane,.workspace > .editorPane{padding:14px}.canvasScroller{height:400px!important}}
