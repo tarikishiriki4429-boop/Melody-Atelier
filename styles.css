@@ -158,3 +158,12 @@
 @media(max-width:630px){.chordTrackPanel{padding:10px}.chordClipFields{grid-template-columns:repeat(2,minmax(100px,1fr))}.chordTrackHead>button{width:100%}.chordTrackActions label{margin:0}}
 
 .timedChord.compact .timedChordHandle{display:none}.timedChord.compact{padding:0 4px;justify-content:flex-start}
+
+/* Melody layers: large iPad touch targets, always immediately above the piano roll. */
+.melodyTabDock{position:sticky;top:0;z-index:15;background:#19263b;border:1px solid #52627b;border-radius:14px;padding:10px;margin:10px 0 12px;box-shadow:0 6px 18px #0004}
+.melodyTabRow{display:flex;gap:8px;align-items:stretch}.melodyTabBar{display:flex;gap:8px;overflow-x:auto;flex:1;min-width:0;padding-bottom:4px;scrollbar-width:thin}
+.melodyTab{flex:none;min-height:48px;min-width:104px;padding:9px 15px;border-radius:11px;border:2px solid #57657d;background:#25354d;color:#f1f5ff;font-size:15px;font-weight:700;touch-action:manipulation}
+.melodyTab.active{background:var(--tab-color);color:#131d2c;border-color:#fff;box-shadow:0 0 0 2px #fff2}
+.melodyTabAdd{flex:none;min-height:48px;padding:8px 14px;border-radius:11px;background:#2d4b56;color:#eafffb;border:1px solid #7cd5cb;font-weight:750}
+.melodyTabOptions,.transcribeRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}.melodyTabOptions label,.transcribeRow label{display:flex;align-items:center;gap:6px;color:#d7e4f3;font-size:13px}.melodyTabOptions select,.transcribeRow select{min-height:38px;border-radius:8px}.transcribeRow{border-top:1px solid #4b5a70;padding-top:8px}.transcribeRow #transcribeStatus{font-size:12px;color:#c3d4e5}
+@media(max-width:650px){.melodyTabDock{padding:8px}.melodyTab{min-width:94px;padding:8px 11px}.melodyTabOptions button{min-height:38px}}
