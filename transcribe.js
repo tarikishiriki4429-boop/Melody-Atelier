@@ -1,5 +1,5 @@
 'use strict';
-// Melody Atelier v0.7.2: audio-to-notes + multitrack MIDI + hybrid original audio playback.
+// Melody Atelier v0.7.3: audio-to-notes + multitrack MIDI + hybrid original audio playback.
 // Add-on: no cloud upload, no third-party libraries, does not replace app.js.
 (()=>{
   const $=id=>document.getElementById(id);
@@ -29,6 +29,20 @@
   const styles=document.createElement('style');
   styles.textContent=`.externalNoteImport{padding:13px 15px;border:1px solid #465773;background:#162337;border-radius:12px;margin:11px 0;display:grid;gap:10px;color:#edf2ff}.externalNoteImportHeader{display:flex;gap:8px 18px;flex-wrap:wrap;align-items:center}.externalNoteImportHeader small,.externalNoteImportStatus{font-size:12px;color:#a6d6cc}.externalNoteImportActions{display:flex;gap:8px 10px;align-items:center;flex-wrap:wrap}.externalNoteImportActions label{display:flex;align-items:center;gap:6px;font-size:12px}.externalNoteImportActions select{max-width:230px}.externalNoteImportActions .externalCheck input{min-width:17px;accent-color:#aa96ff}.externalNoteImportStatus{line-height:1.5;overflow-wrap:anywhere}`;
   document.head.append(styles);
+  // Collapse the previous single-audio row AND the new MIDI/WAV controls into one toolbar.
+  const oldAudioRow=input.closest('.transcribeRow');
+  if(oldAudioRow){
+    const fold=document.createElement('details');fold.className='maImportFold';
+    const summary=document.createElement('summary');summary.textContent='♫ MIDI / WAVを読み込む（タップして開く）';
+    oldAudioRow.before(fold);fold.append(summary,oldAudioRow,panel);
+    const style=document.createElement('style');style.textContent=`
+      .maImportFold{border:1px solid #435777;border-radius:11px;margin:10px 0;background:#17283b;padding:9px 12px;color:#d9e8f8}
+      .maImportFold>summary{cursor:pointer;list-style:disclosure-closed;font-weight:700;padding:4px 2px;touch-action:manipulation}
+      .maImportFold[open]>summary{margin-bottom:8px}
+      .maImportFold .transcribeRow{margin:8px 0;min-height:0}.maImportFold .externalNoteImport{margin:0;padding:10px}
+      .maImportFold:not([open])>:not(summary){display:none!important}
+    `;document.head.append(style);
+  }
   const otherStatus=$('externalImportStatus');
 
   // Small and portable Standard MIDI File reader; formats 0 and 1, PPQ ticks.
@@ -291,32 +305,36 @@
 
 
 'use strict';
-// Melody Atelier v0.7.2: optional, non-destructive local audio/notation hybrid playback.
+// Melody Atelier v0.7.3: optional, non-destructive local audio/notation hybrid playback.
 // All recordings stay in browser IndexedDB; no network transport or third-party libraries.
 (()=>{
  const $=id=>document.getElementById(id),STORE='melody-atelier-hybrid-v072',VELKEY='melody-atelier-velocities-v1';
  const importPanel=document.querySelector('.externalNoteImport');if(!importPanel)return;
  const css=document.createElement('style');css.textContent=`
- .hybridPanel{padding:16px;border:1px solid #56728c;border-radius:13px;background:#162436;display:grid;gap:12px;margin:14px 0;color:#f1f2ff}
+ .hybridPanel{padding:11px 14px;border:1px solid #56728c;border-radius:13px;background:#162436;display:block;margin:10px 0;color:#f1f2ff}
+ .hybridPanel:not([open])>:not(summary){display:none!important}.hybridPanel[open]>:not(summary){margin-top:11px}
  .hybridTop{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}.hybridTop strong{font-size:15px}
  .hybridRow{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap}.hybridRow label{font-size:12px;display:flex;align-items:center;gap:5px}
  .hybridPanel button{font-size:12px}.hybridPanel small,.hybridHint{font-size:12px;color:#b6cbd1;line-height:1.7}
  .hybridPanel select{max-width:240px}.hybridPanel input[type=number]{width:85px}.hybridPanel input[type=range]{min-width:110px;max-width:180px}
  .hybridTracks{display:grid;gap:9px}.hybridClip{padding:10px;border:1px solid #435778;border-radius:9px;display:grid;gap:7px}
- .hybridClip strong{overflow-wrap:anywhere;font-size:12px}.hybridClip canvas{display:block;max-width:100%;width:100%;height:60px;background:#0e1523;border-radius:5px}
+ .hybridClip strong{overflow-wrap:anywhere;font-size:12px}.hybridClip canvas{display:block;max-width:100%;width:100%;height:76px;background:#0e1523;border-radius:5px;touch-action:none;cursor:crosshair}
+ .hybridClip:not([open])>:not(summary){display:none!important}.hybridClip>summary{font-size:12px;cursor:pointer;padding:4px 2px;color:#e9efff}.hybridClip[open]>summary{margin-bottom:8px}
+ .hybridTimelineHint{font-size:11px;color:#a3d5c9}.hybridPanel>summary{cursor:pointer;touch-action:manipulation;list-style:disclosure-closed;padding:4px 2px}.hybridPanel>summary small{font-size:11px;color:#b6cbd1}
  .hybridMeter{color:#93dcd0;font-size:12px}.hybridDanger{color:#ffc5c5}.hybridTransport button{background:#31564f;color:white;border:1px solid #63ae9f}
  .hybridPanel .hybridSelected{color:#ead5a5;font-size:12px}.hybridVel{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
  `;document.head.append(css);
- const panel=document.createElement('section');panel.className='hybridPanel';panel.setAttribute('aria-label','録音と譜面のハイブリッド編集');
+ const panel=document.createElement('details');panel.className='hybridPanel';panel.setAttribute('aria-label','録音と譜面のハイブリッド編集');
  panel.innerHTML=`
- <div class="hybridTop"><strong>🎹 原音を残す・高音質ハイブリッド編集 <small>v0.7.2</small></strong><span class="hybridMeter">非破壊・端末内保存</span></div>
- <div class="hybridRow"><button type="button" class="accent small" id="hybridPick">＋ 元の録音を登録（WAV / MP3 / M4A）</button><input id="hybridInput" type="file" accept="audio/*,.wav,.mp3,.m4a,.aac" multiple hidden><button id="hybridRefresh" type="button" class="outline small">♻ 曲のブロックを更新</button></div>
- <div class="hybridRow"><label>録音を重ねるブロック <select id="hybridSection"></select></label><label>試聴 <select id="hybridMode"><option value="normal">従来どおり</option><option value="original">原音を優先（編集音なし）</option><option value="enhanced">強弱つきピアノのみ</option><option value="mix" selected>原音＋編集ピアノ</option></select></label><label>編集音の音量 <input type="range" id="hybridSynthGain" min="0" max="100" value="30"><output id="hybridSynthOut">30%</output></label></div>
+ <summary class="hybridTop"><strong>🎹 録音を直接編集・原音＋音符 <small>v0.7.3</small></strong><span class="hybridMeter">開く / 閉じる ▼</span></summary>
+ <div class="hybridRow"><button type="button" class="accent small" id="hybridPick">＋ 編集する録音を登録（WAV / MP3 / M4A）</button><input id="hybridInput" type="file" accept="audio/*,.wav,.mp3,.m4a,.aac" multiple hidden><button id="hybridRefresh" type="button" class="outline small">♻ 曲のブロックを更新</button></div>
+ <div class="hybridRow"><label>録音を置くブロック <select id="hybridSection"></select></label><label>試聴 <select id="hybridMode"><option value="normal">従来どおり</option><option value="original">原音を優先（編集音なし）</option><option value="enhanced">強弱つきピアノのみ</option><option value="mix" selected>原音＋編集ピアノ</option></select></label><label>編集音の音量 <input type="range" id="hybridSynthGain" min="0" max="100" value="30"><output id="hybridSynthOut">30%</output></label></div>
  <div class="hybridRow hybridTransport"><button id="hybridPlay" type="button">▶ ハイブリッド再生</button><button id="hybridStop" type="button" class="outline small">■ 停止</button><button id="hybridExport" type="button" class="outline small">↓ ミックスWAVを書き出す</button><span class="hybridHint" id="hybridStatus" role="status">原音は元ファイルのまま保持。複数の音を重ねて再生できます。</span></div>
  <div class="hybridTracks" id="hybridTracks"></div>
  <div class="hybridVel"><span class="hybridSelected">選択音の強さ（ベロシティ）</span><input type="range" id="hybridVelocity" min="1" max="127" value="90"><output id="hybridVelocityOut">90 / 127</output><button type="button" id="hybridVelocityApply" class="outline small">選択音に反映</button></div>
- <p class="hybridHint">※「原音＋編集ピアノ」は元の演奏と合成音が二重になることがあります。割合を調整してください。録音から和音を完全に分離・個別編集する機能ではありません。録音はこの端末のIndexedDBに保存されますが、通常のプロジェクトJSONには音声本体を含みません。削除・別端末への移行時は元音声も別途保管してください。</p>`;
- importPanel.after(panel);
+ <p class="hybridHint">録音波形から分割点を指定し、クリップ単位で位置移動・トリミング・フェード・左右定位・明るさ・逆再生・音量調整ができます。元の音声ファイル自体は変更せず、再生と書き出しに変更が反映されます。元音声から重なった鍵盤を個別に分離する機能ではありません。端末内のIndexedDBに保存しますが、通常のプロジェクトJSONに音声本体は入りません。音声も別途バックアップしてください。</p>`;
+ const foldParent=importPanel.closest('.maImportFold');if(foldParent)foldParent.after(panel);else importPanel.after(panel);
+ document.querySelectorAll('.branding small,.footer b').forEach(node=>{if(/^v0\.7\.\d+$/.test(node.textContent.trim()))node.textContent='v0.7.3';});
  const status=$('hybridStatus');let tracks=[],db=null,current=null,currentUrl='',decoded=new Map(),velocity={};
  try{velocity=JSON.parse(localStorage.getItem(VELKEY)||'{}')||{};}catch{velocity={};}
  const saveVel=()=>{try{localStorage.setItem(VELKEY,JSON.stringify(velocity));}catch(e){status.textContent='音の強弱を保存できません。保存容量を確認してください。';}};
@@ -344,21 +362,73 @@
    for(const s of p.sections){const len=sectionLength(s,beats);blocks.push({id:s.id,section:s,start:beat,end:beat+len,notes:effectiveNotes(s)});beat+=len+(len?Number(s.gap)||0:0);}
    return {bpm,blocks,total:beat};
  }
- function makeWave(canvas,data){const dpr=window.devicePixelRatio||1,w=canvas.clientWidth||480,h=canvas.clientHeight||60;canvas.width=Math.max(1,Math.round(w*dpr));canvas.height=Math.max(1,Math.round(h*dpr));const g=canvas.getContext('2d');g.scale(dpr,dpr);g.clearRect(0,0,w,h);g.strokeStyle='#70c7b9';g.lineWidth=1;g.beginPath();const samples=data.getChannelData(0),size=samples.length/w;
-   for(let x=0;x<w;x++){const a=Math.floor(x*size),b=Math.max(a+1,Math.floor((x+1)*size)),stride=Math.max(1,Math.floor((b-a)/48));let min=1,max=-1;for(let i=a;i<b;i+=stride){const y=samples[i];min=Math.min(min,y);max=Math.max(max,y);}g.moveTo(x,h/2-max*(h*.45));g.lineTo(x,h/2-min*(h*.45));}g.stroke();}
+ function makeWave(canvas,data,clip=null,cut=null){
+   const dpr=window.devicePixelRatio||1,w=canvas.clientWidth||480,h=canvas.clientHeight||76;
+   canvas.width=Math.max(1,Math.round(w*dpr));canvas.height=Math.max(1,Math.round(h*dpr));const g=canvas.getContext('2d');
+   g.scale(dpr,dpr);g.clearRect(0,0,w,h);g.strokeStyle='#70c7b9';g.lineWidth=1;g.beginPath();
+   const samples=data.getChannelData(0),size=samples.length/w;
+   for(let x=0;x<w;x++){const a=Math.floor(x*size),b=Math.max(a+1,Math.floor((x+1)*size)),stride=Math.max(1,Math.floor((b-a)/48));let min=1,max=-1;for(let i=a;i<b;i+=stride){const y=samples[i];min=Math.min(min,y);max=Math.max(max,y);}g.moveTo(x,h/2-max*(h*.45));g.lineTo(x,h/2-min*(h*.45));}g.stroke();
+   if(clip){const a=clamp(Number(clip.trimStart)||0,0,data.duration)/data.duration*w,b=clamp(Number(clip.trimEnd)||data.duration,0,data.duration)/data.duration*w;
+     g.fillStyle='rgba(6,8,18,.66)';g.fillRect(0,0,a,h);g.fillRect(b,0,w-b,h);
+     g.fillStyle='#f0cc83';g.fillRect(Math.max(0,a-1),0,3,h);g.fillRect(Math.min(w,b),0,3,h);
+     if(Number.isFinite(cut)){const x=clamp(cut,0,data.duration)/data.duration*w;g.fillStyle='#d9a5f9';g.fillRect(x,0,2,h);}
+   }
+ }
  async function context(){const ctor=window.AudioContext||window.webkitAudioContext;if(!ctor)throw Error('Safariの音声デコーダーが利用できません。');return new ctor();}
  async function decode(blob,id){if(decoded.has(id))return decoded.get(id);const c=await context();try{const a=await c.decodeAudioData(await blob.arrayBuffer());if(a.duration>180)throw Error('録音は1ファイル3分以内にしてください。');decoded.set(id,a);return a;}finally{await c.close().catch(()=>{});}}
  function renderTracks(){const box=$('hybridTracks');box.replaceChildren();const sectionId=$('hybridSection').value;const tt=tracks.filter(t=>t.sectionId===sectionId);if(!tt.length){const small=document.createElement('small');small.textContent='このブロックに原音はありません。元のWAV・MP3を登録すると波形を表示します。';box.append(small);return;}
-   for(const t of tt){const div=document.createElement('div');div.className='hybridClip';
-     const strong=document.createElement('strong');strong.textContent=t.name;div.append(strong);
-     const cv=document.createElement('canvas');cv.setAttribute('aria-label','録音の波形');div.append(cv);if(decoded.has(t.id))requestAnimationFrame(()=>makeWave(cv,decoded.get(t.id)));
+   for(const t of tt){const div=document.createElement('details');div.className='hybridClip';
+     const strong=document.createElement('summary');strong.textContent='🎧 '+t.name+'　▼ クリップ編集';div.append(strong);
+     const cv=document.createElement('canvas');cv.setAttribute('aria-label','録音の波形');div.append(cv);if(decoded.has(t.id))requestAnimationFrame(()=>{if(div.open)makeWave(cv,decoded.get(t.id),t);});
      const controls=document.createElement('div');controls.className='hybridRow';controls.innerHTML='<label>開始ずらし（秒） <input type="number" min="-30" max="180" step="0.01" data-key="offset"></label><label>音量 <input type="range" min="0" max="150" data-key="gain"></label><label>ミュート <input type="checkbox" data-key="mute"></label><label>原音の開始秒 <input type="number" min="0" step="0.01" data-key="trimStart"></label><label>終了秒（0は最後まで） <input type="number" min="0" step="0.01" data-key="trimEnd"></label><label>分割位置（秒） <input type="number" min="0" step="0.01" data-key="splitAt"></label><button type="button" class="outline small" data-act="split">✂ 時間で分割</button><button type="button" class="outline small" data-act="play">▶ 原音だけ</button><button type="button" class="outline small" data-act="export">↓ 元ファイルを保存</button><button type="button" class="outline small hybridDanger" data-act="delete">削除</button>';
+     const advanced=document.createElement('div');advanced.className='hybridRow';advanced.innerHTML=`
+       <label>波形を触ると <select data-key="gesture"><option value="cut">紫の分割線を置く</option><option value="move">左右ドラッグで位置移動</option><option value="trimLeft">左端をトリミング</option><option value="trimRight">右端をトリミング</option></select></label>
+       <label>入りフェード（秒） <input type="number" min="0" max="10" step="0.05" data-key="fadeIn"></label>
+       <label>終わりフェード（秒） <input type="number" min="0" max="10" step="0.05" data-key="fadeOut"></label>
+       <label>音色 <input type="range" min="-100" max="100" step="1" data-key="tone"></label>
+       <label>左右位置 <input type="range" min="-100" max="100" step="1" data-key="pan"></label>
+       <label>逆再生 <input type="checkbox" data-key="reverse"></label>
+       <button type="button" class="outline small" data-act="editedExport">↓ 編集結果のWAV</button>
+       <button type="button" class="outline small" data-act="reset">↺ このクリップを初期化</button>`;
+     const gesture=advanced.querySelector('[data-key=gesture]');
+     const hint=document.createElement('div');hint.className='hybridTimelineHint';hint.textContent='波形をタップして分割位置を決められます。モードを変えるとドラッグで位置や切り出し範囲を動かせます。';
+     const refreshWave=()=>{const data=decoded.get(t.id);if(data&&div.open)makeWave(cv,data,t,Number(splitAt?.value));};
+     div.addEventListener('toggle',()=>{if(div.open)requestAnimationFrame(refreshWave);});
      const off=controls.querySelector('[data-key=offset]'),gain=controls.querySelector('[data-key=gain]'),mute=controls.querySelector('[data-key=mute]');off.value=t.offset;gain.value=Math.round(t.gain*100);mute.checked=!!t.mute;
      const cutStart=controls.querySelector('[data-key=trimStart]'),cutEnd=controls.querySelector('[data-key=trimEnd]'),splitAt=controls.querySelector('[data-key=splitAt]');
      cutStart.value=t.trimStart||0;cutEnd.value=t.trimEnd||0;splitAt.value=+(Number(t.trimStart||0)+(Number(t.trimEnd||decoded.get(t.id)?.duration||2)-Number(t.trimStart||0))/2).toFixed(2);
      const modify=(key,value)=>{t[key]=value;storeClip(t).catch(e=>status.textContent='保存できません：'+e.message);};off.onchange=()=>modify('offset',clamp(+off.value,-30,180));gain.oninput=()=>{t.gain=clamp(+gain.value/100,0,1.5);};gain.onchange=()=>modify('gain',t.gain);mute.onchange=()=>modify('mute',mute.checked);
      cutStart.onchange=()=>{const dur=decoded.get(t.id)?.duration||180;modify('trimStart',clamp(+cutStart.value,0,dur));};
      cutEnd.onchange=()=>{const dur=decoded.get(t.id)?.duration||180;modify('trimEnd',clamp(+cutEnd.value,0,dur));};
+     for(const key of ['fadeIn','fadeOut','tone','pan','reverse']){
+       const f=advanced.querySelector('[data-key='+key+']');
+       f[key==='reverse'?'checked':'value']=key==='reverse'?!!t.reverse:(Number(t[key])||0);
+       f.addEventListener(key==='reverse'?'change':'input',()=>{t[key]=key==='reverse'?f.checked:Number(f.value);if(key==='tone'||key==='pan')hint.textContent=key==='tone'?(t.tone<0?'丸みのある音色':t.tone>0?'輪郭のある明るい音色':'元の音色'):(t.pan<0?'左へ':t.pan>0?'右へ':'中央');});
+       f.addEventListener('change',()=>{modify(key,t[key]);});
+     }
+     const timeByX=x=>{const d=decoded.get(t.id)?.duration||1;return clamp(x/cv.getBoundingClientRect().width*d,0,d);};
+     const waveX=e=>e.clientX-cv.getBoundingClientRect().left;
+     let gestureDown=null;
+     cv.addEventListener('pointerdown',e=>{if(!div.open)return;gestureDown={x:waveX(e),offset:Number(t.offset)||0,trimStart:Number(t.trimStart)||0,trimEnd:Number(t.trimEnd)||decoded.get(t.id)?.duration||1};if(gesture.value==='cut'){splitAt.value=timeByX(waveX(e)).toFixed(2);refreshWave();}try{cv.setPointerCapture(e.pointerId);}catch{}e.preventDefault();});
+     cv.addEventListener('pointermove',e=>{if(!gestureDown)return;const m=gesture.value,x=waveX(e),d=decoded.get(t.id)?.duration||1,delta=(x-gestureDown.x)/cv.getBoundingClientRect().width*d;
+       if(m==='cut'){splitAt.value=timeByX(x).toFixed(2);}
+       else if(m==='move'){t.offset=clamp(gestureDown.offset+delta,-30,180);off.value=t.offset.toFixed(2);}
+       else if(m==='trimLeft'){t.trimStart=clamp(timeByX(x),0,(Number(t.trimEnd)||d)-.05);cutStart.value=t.trimStart.toFixed(2);}
+       else if(m==='trimRight'){t.trimEnd=clamp(timeByX(x),(Number(t.trimStart)||0)+.05,d);cutEnd.value=t.trimEnd.toFixed(2);}
+       refreshWave();e.preventDefault();
+     });
+     cv.addEventListener('pointerup',()=>{if(!gestureDown)return;const m=gesture.value;gestureDown=null;
+       if(m==='move')modify('offset',Number(t.offset));if(m==='trimLeft')modify('trimStart',Number(t.trimStart));if(m==='trimRight')modify('trimEnd',Number(t.trimEnd));refreshWave();
+       hint.textContent=m==='move'?'開始位置：'+Number(t.offset).toFixed(2)+'秒':m==='cut'?'分割位置：'+splitAt.value+'秒':'トリミング範囲を更新しました。';
+     });
+     cv.addEventListener('pointercancel',()=>{gestureDown=null;});
+     for(const field of [splitAt,cutStart,cutEnd])field.addEventListener('change',refreshWave);
+     advanced.querySelector('[data-act=reset]').onclick=async()=>{
+       if(!confirm('このクリップの位置・トリム・音量・フェード・音色を初期値に戻しますか？'))return;
+       Object.assign(t,{offset:0,trimStart:0,trimEnd:0,gain:1,mute:false,fadeIn:0,fadeOut:0,tone:0,pan:0,reverse:false});
+       await storeClip(t);renderTracks();status.textContent='クリップを初期状態に戻しました。元の録音は保持されています。';
+     };
+     advanced.querySelector('[data-act=editedExport]').onclick=()=>void exportEditedClip(t);
      controls.querySelector('[data-act=split]').onclick=async()=>{try{
        if(tracks.length>=14)throw Error('原音は14クリップまでです。');
        const d=await decode(t.blob,t.id),start=clamp(Number(t.trimStart)||0,0,d.duration),end=clamp(Number(t.trimEnd)||d.duration,0,d.duration),cut=clamp(+splitAt.value,0,d.duration);
@@ -369,16 +439,27 @@
      controls.querySelector('[data-act=play]').onclick=()=>void playRaw(t);
      controls.querySelector('[data-act=export]').onclick=()=>{const u=URL.createObjectURL(t.blob),a=document.createElement('a');a.href=u;a.download=t.name;a.click();setTimeout(()=>URL.revokeObjectURL(u),12000);};
      controls.querySelector('[data-act=delete]').onclick=async()=>{if(!confirm('この原音トラックを削除しますか？ 譜面は変更されません。'))return;stop();decoded.delete(t.id);await removeClip(t.id);tracks=tracks.filter(x=>x.id!==t.id);renderTracks();};
-     div.append(controls);box.append(div);
-     if(!decoded.has(t.id))decode(t.blob,t.id).then(a=>{if(cv.isConnected)makeWave(cv,a);}).catch(e=>{status.textContent='波形生成：'+e.message;});
+     div.append(hint,controls,advanced);box.append(div);
+     if(!decoded.has(t.id))decode(t.blob,t.id).then(a=>{if(cv.isConnected&&div.open)makeWave(cv,a,t,Number(splitAt.value));}).catch(e=>{status.textContent='波形生成：'+e.message;});
    }
  }
  function stop(){if(current){current.pause();current.removeAttribute('src');current.load();current=null;}if(currentUrl){URL.revokeObjectURL(currentUrl);currentUrl='';}const appStop=$('stop');if(appStop)appStop.click();}
- async function playRaw(t){stop();current=new Audio();currentUrl=URL.createObjectURL(t.blob);current.src=currentUrl;current.volume=clamp(t.gain,0,1);
-   const d=await decode(t.blob,t.id),start=clamp(Number(t.trimStart)||0,0,d.duration),end=clamp(Number(t.trimEnd)||d.duration,start,d.duration);
-   current.onloadedmetadata=()=>{current.currentTime=start;};
-   current.ontimeupdate=()=>{if(current&&current.currentTime>=end)current.pause();};
-   try{await current.play();status.textContent='原音をそのまま再生中（音符合成なし）';}catch(e){status.textContent='Safariで音声再生が拒否されました。もう一度「▶ 原音だけ」を押してください：'+e.message;}}
+ function clipScope(t){const line=timeline(),beatSec=60/line.bpm,block=line.blocks.find(b=>b.id===t.sectionId),d=decoded.get(t.id);
+   if(!d)throw Error('先に音声解析が必要です。');const sourceStart=clamp(Number(t.trimStart)||0,0,d.duration),sourceEnd=clamp(Number(t.trimEnd)||d.duration,sourceStart,d.duration);
+   const start=(block?block.start*beatSec:0)+(Number(t.offset)||0)+sourceStart;
+   return {timeline:line,start,end:start+sourceEnd-sourceStart,kind:'clip'};
+ }
+ async function audioFromEditedClip(t){const file=await renderMix(clipScope(t),'original',t.id);return file;}
+ async function playRaw(t){
+   try{stop();status.textContent='編集済みの原音を生成中…';const result=await audioFromEditedClip(t);
+     current=new Audio();currentUrl=URL.createObjectURL(result);current.src=currentUrl;
+     await current.play();status.textContent='▶ トリム・フェード・音色等を反映した原音クリップを再生中';
+   }catch(e){status.textContent='再生できません：'+e.message+'。Safariではもう一度再生操作が必要な場合があります。';}
+ }
+ async function exportEditedClip(t){try{status.textContent='編集中の録音をWAVに書き出しています…';const blob=await audioFromEditedClip(t);
+     const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(t.name.replace(/\.[^.]+$/,'').slice(0,42)||'recording')+'-edited.wav';a.click();setTimeout(()=>URL.revokeObjectURL(url),15000);status.textContent='編集結果をWAVに書き出しました。元ファイルは残っています。';
+   }catch(e){status.textContent='編集書き出し失敗：'+e.message;}
+ }
  function getScope(target){const t=timeline(),kind=target==='playAll'||target==='playArrangement'||target==='hybridPlay'||target==='hybridExport'?'all':target==='playSection'?'section':target==='playFromSelected'||target==='playFromInspector'?'selected':'all';const selected=activeId(),section=t.blocks.find(b=>b.id===selected);
    const beatPerSec=60/t.bpm;let start=0,end=t.total*beatPerSec;
    if(kind==='section'&&section){start=section.start*beatPerSec;end=section.end*beatPerSec;}
@@ -399,17 +480,38 @@
    setTimeout(()=>{const p=project();for(const entry of assignments){const s=p?.sections?.find(s=>s.id===entry.sectionId);const tab=s?.melodyTabs?.[entry.tabIndex];if(!tab)continue;const imported=(tab.notes||[]).slice(-entry.notes.length);for(let i=0;i<imported.length;i++){if(Number.isFinite(entry.notes[i]?.velocity))velocity[imported[i].id]=clamp(entry.notes[i].velocity,1,127);}}
      saveVel();refreshVelocityUI();status.textContent='MIDIの打鍵強度（ベロシティ）を読み込みました。';},850);
  };
- async function renderMix(scope,mode){const {timeline:t,start,end}=scope,bpm=t.bpm,beatSec=60/bpm,chosen=tracks.filter(x=>!x.mute&&x.blob);
+ async function renderMix(scope,mode,clipOnly=null){const {timeline:t,start,end}=scope,bpm=t.bpm,beatSec=60/bpm,chosen=tracks.filter(x=>!x.mute&&x.blob&&(!clipOnly||x.id===clipOnly));
    const sourceData=new Map();if(mode==='original'||mode==='mix')for(const track of chosen)sourceData.set(track.id,await decode(track.blob,track.id));
    let fullSec=Math.max(end,...chosen.map(c=>{const d=sourceData.get(c.id);const b=t.blocks.find(x=>x.id===c.sectionId);return (b?b.start*beatSec:0)+c.offset+(Number(c.trimEnd)||d?.duration||0);}),0);
    if(scope.kind==='all')fullSec=Math.max(fullSec,end);
    const to=start,finish=scope.kind==='all'?fullSec:end;const duration=finish-to;if(duration<=0)throw Error('再生範囲に音がありません。');if(duration>105)throw Error('ミックス再生・書き出しは一度に105秒以内。ブロックを分割してください。');
-   const rate=44100,frames=Math.ceil((duration+.6)*rate),left=new Float32Array(frames),right=new Float32Array(frames);
+   const rate=44100,frames=Math.ceil((duration+(mode==='original'?0:.6))*rate),left=new Float32Array(frames),right=new Float32Array(frames);
    if(mode==='original'||mode==='mix'){
-     for(const clip of chosen){const a=sourceData.get(clip.id),block=t.blocks.find(x=>x.id===clip.sectionId),trimStart=clamp(Number(clip.trimStart)||0,0,a.duration),trimEnd=clamp(Number(clip.trimEnd)||a.duration,trimStart,a.duration),begin=(block?block.start*beatSec:0)+clip.offset+trimStart-to,d=Array.from({length:a.numberOfChannels},(_,i)=>a.getChannelData(i));
-       let first=Math.max(0,Math.floor(begin*rate)),last=Math.min(frames,Math.floor((begin+trimEnd-trimStart)*rate));
-       for(let i=first;i<last;i++){const offset=(i/rate-begin+trimStart)*a.sampleRate,ix=Math.floor(offset),fract=offset-ix;if(ix<0||ix+1>=a.length)continue;const time=offset/a.sampleRate,fadeIn=trimStart>0?clamp((time-trimStart)/.008,0,1):1,fadeOut=trimEnd<a.duration?clamp((trimEnd-time)/.008,0,1):1,w=fadeIn*fadeOut*clip.gain;
-         const l=(d[0][ix]*(1-fract)+d[0][ix+1]*fract)*w,r=d[1]?(d[1][ix]*(1-fract)+d[1][ix+1]*fract)*w:l;left[i]+=l;right[i]+=r;}
+     for(const clip of chosen){
+       const a=sourceData.get(clip.id),block=t.blocks.find(x=>x.id===clip.sectionId);
+       const trimStart=clamp(Number(clip.trimStart)||0,0,a.duration),trimEnd=clamp(Number(clip.trimEnd)||a.duration,trimStart,a.duration);
+       const begin=(block?block.start*beatSec:0)+(Number(clip.offset)||0)+trimStart-to;
+       const d=Array.from({length:a.numberOfChannels},(_,i)=>a.getChannelData(i)),length=trimEnd-trimStart;
+       const first=Math.max(0,Math.floor(begin*rate)),last=Math.min(frames,Math.ceil((begin+length)*rate));
+       const fadeIn=clamp(Number(clip.fadeIn)||0,0,10),fadeOut=clamp(Number(clip.fadeOut)||0,0,10);
+       const pan=clamp(Number(clip.pan)||0,-100,100)/100,tone=clamp(Number(clip.tone)||0,-100,100)/100;
+       const dark=Math.max(0,-tone),bright=Math.max(0,tone),alpha=1-Math.exp(-2*Math.PI*1300/rate);
+       let lowL=0,lowR=0;
+       for(let i=first;i<last;i++){
+         const local=i/rate-begin,time=clip.reverse?trimEnd-local:trimStart+local;
+         const pos=time*a.sampleRate,ix=Math.floor(pos),f=pos-ix;
+         if(ix<0||ix+1>=a.length)continue;
+         const sourceL=d[0][ix]*(1-f)+d[0][ix+1]*f;
+         const sourceR=d[1]?(d[1][ix]*(1-f)+d[1][ix+1]*f):sourceL;
+         lowL+=alpha*(sourceL-lowL);lowR+=alpha*(sourceR-lowR);
+         const filteredL=sourceL*(1-dark)+lowL*dark+(sourceL-lowL)*bright*.65;
+         const filteredR=sourceR*(1-dark)+lowR*dark+(sourceR-lowR)*bright*.65;
+         const edge=Math.min(1,local/.008,(length-local)/.008);
+         const fi=fadeIn?Math.min(1,local/fadeIn):1,fo=fadeOut?Math.min(1,(length-local)/fadeOut):1;
+         const volume=Math.max(0,edge)*fi*fo*clamp(Number(clip.gain),0,1.5);
+         left[i]+=filteredL*volume*(pan>0?1-pan:1);
+         right[i]+=filteredR*volume*(pan<0?1+pan:1);
+       }
        await wait();
      }
    }
@@ -445,7 +547,7 @@
  async function play(mode,scopeName='hybridPlay',exportOnly=false){if(playBusy)return;playBusy=true;const button=$('hybridPlay');button.disabled=true;try{
    stop();const scope=getScope(scopeName),t=tracks.filter(c=>!c.mute);if((mode==='original'||mode==='mix')&&!t.length){if(mode==='original')throw Error('まず元音源を追加してください。');status.textContent='原音未登録のため、編集ピアノだけを鳴らします。';mode='enhanced';}
    // Full-fidelity passthrough: one original clip aligned at the beginning of a section.
-   if(!exportOnly&&mode==='original'&&t.length===1&&scope.kind==='all'&&t[0].offset===0&&scope.timeline.blocks.find(b=>b.id===t[0].sectionId)?.start===0){await playRaw(t[0]);return;}
+   // All original-audio playback goes through the clip render path so trims/fades/EQ are audible. 
    status.textContent='原音と音符を準備しています…';const result=await renderMix(scope,mode);
    const name='MelodyAtelier-'+mode+'-'+Date.now()+'.wav';if(exportOnly){const url=URL.createObjectURL(result),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),15000);status.textContent='ミックスWAVを書き出しました。元音声と譜面は変更していません。';}
    else{current=new Audio();currentUrl=URL.createObjectURL(result);current.src=currentUrl;current.onended=()=>{status.textContent='再生が完了しました。';};try{await current.play();status.textContent='▶ '+(mode==='original'?'原音':mode==='enhanced'?'強弱つきピアノ':'原音＋編集ピアノ')+' を再生中';}catch(e){status.textContent='音声の自動再生が許可されませんでした。「▶ ハイブリッド再生」をもう一度押してください。';}}
