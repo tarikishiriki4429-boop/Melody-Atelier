@@ -824,14 +824,14 @@
   const MAX_GUIDE_SEC=900;
   // Render exactly once for both standalone WAV and Melody→Voice transfer.
   // The source remains the editable JSON project; WAV is a guide, not notation.
-  function renderGuideBlob(){
-    const p=projectEvents(),chords=st.chordAlong?rhythmChords(chordTimelineEvents(p),p):[];
-    if(!p.events.length&&!chords.length)throw new Error('先にメロディーまたはコードを用意してください。');
+  function renderGuideBlob(part='both'){
+    const p=projectEvents(),chords=(part==='chords'||st.chordAlong)?rhythmChords(chordTimelineEvents(p),p):[];
+    if(!(part==='melody'?p.events.length:part==='chords'?chords.length:(p.events.length||chords.length)))throw new Error('先にメロディーまたはコードを用意してください。');
     const seconds=p.totalBeats*60/st.bpm;
     if(seconds>MAX_GUIDE_SEC)throw new Error('ガイド音声は15分までです。曲の構成を短くしてください。');
     const rate=seconds>480?24000:32000,frames=Math.max(1,Math.ceil((seconds+.4)*rate));
     const samples=new Float32Array(frames),type=st.sound,bp=60/st.bpm;
-    for(const n of p.events){
+    for(const n of (part==='chords'?[]:p.events)){
       const start=Math.max(0,Math.floor(n.beat*bp*rate)),length=n.duration*bp*.94,freq=440*Math.pow(2,(n.pitch-69)/12),amplitude=(st.volume/100)*.36;
       const len=Math.max(0,Math.min(frames-start,Math.ceil((length+PIANO_TAIL)*rate)));
       for(let i=0;i<len;i++){
@@ -839,7 +839,7 @@
         samples[start+i]+=v*amplitude;
       }
     }
-    for(const event of chords){
+    for(const event of (part==='melody'?[]:chords)){
       const start=Math.round(event.beat*bp*rate),length=event.duration*bp*.9;
       for(const pitch of event.pitches){
         const f=440*Math.pow(2,(pitch+12-69)/12),count=Math.max(0,Math.min(frames-start,Math.ceil((length+PIANO_TAIL)*rate)));
@@ -854,6 +854,7 @@
     for(let i=0;i<frames;i++){const x=Math.max(-1,Math.min(1,samples[i]*scale));view.setInt16(44+i*2,x<0?x*32768:x*32767,true);}
     return new Blob([buf],{type:'audio/wav'});
   }
+  function exportStem(part){try{download(renderGuideBlob(part),filename()+'-'+(part==='melody'?'melody':'accompaniment')+'.wav');message('パート別WAVを書き出しました。');}catch(e){message('書き出し失敗：'+e.message,6000);}}
   function exportWav(){
     const button=$('exportWav');button.disabled=true;button.textContent='作成中…';
     setTimeout(()=>{try{download(renderGuideBlob(),filename()+'-melody-guide.wav');message('ガイド音声を書き出しました。',4500);}
@@ -882,15 +883,18 @@
     await new Promise(r=>setTimeout(r,60));
     try{
       const p=projectEvents();if(p.blocks.length>40)throw Error('Voice Atelierは40ブロックまでです。');
-      const wav=renderGuideBlob();
-      const bridge={format:'melody-voice-bridge',version:1,source:'Melody Atelier',title:st.title,bpm:st.bpm,beats:st.beats,
-        audioFile:'guide.wav',includesChords:st.chordAlong,guideSeconds:p.totalBeats*60/st.bpm,
+      const melodyWav=renderGuideBlob('melody'),chordWav=renderGuideBlob('chords');
+      const bridge={format:'melody-voice-bridge',version:2,source:'Melody Atelier',title:st.title,bpm:st.bpm,beats:st.beats,
+        audioFile:'melody.wav',melodyFile:'melody.wav',accompanimentFile:'accompaniment.wav',includesChords:true,guideSeconds:p.totalBeats*60/st.bpm,
         sections:p.blocks.map(b=>({name:b.section.name,lyrics:b.section.lyrics,reading:b.section.reading,startBeat:b.start,
           bars:Math.max(1,Math.ceil(b.length/st.beats)),lengthBeats:b.length,gapBeats:b.section.gap,
           root:b.section.root,mode:b.section.mode,notes:b.section.notes,chords:b.section.chords,harmonies:b.section.harmonies}))};
       if(bridge.sections.some(s=>s.bars>48))throw Error('Voice Atelierでは1ブロック最大48小節です。長いブロックを分けてください。');
       const entries=[{name:'bridge.json',bytes:bridgeEncoder.encode(JSON.stringify(bridge))},
-        {name:'guide.wav',bytes:new Uint8Array(await wav.arrayBuffer())},
+        {name:'melody.wav',bytes:new Uint8Array(await melodyWav.arrayBuffer())},
+        {name:'accompaniment.wav',bytes:new Uint8Array(await chordWav.arrayBuffer())},
+        {name:'melody-edit.json',bytes:bridgeEncoder.encode(JSON.stringify(p.events))},
+        {name:'chords-edit.json',bytes:bridgeEncoder.encode(JSON.stringify(chordTimelineEvents(p)))},
         {name:'melody-project.json',bytes:bridgeEncoder.encode(JSON.stringify({...projectSnapshot(),customChordLibrary:customChords}))}];
       download(bridgeZip(entries),filename()+'-Voice連携.zip');
       message('歌詞・BPM・曲構成・ガイド音声を1つのZIPに保存。Voice Atelierで「Melodyから連携ZIP」を選択してください。',6800);
@@ -923,7 +927,7 @@
     $('groupNudgeLeft').onclick=()=>editGroup(0,-st.grid);$('groupNudgeRight').onclick=()=>editGroup(0,st.grid);$('groupNudgeUp').onclick=()=>editGroup(1,0);$('groupNudgeDown').onclick=()=>editGroup(-1,0);
     $('zoomOut').onclick=()=>changeZoom(-.25);$('zoomIn').onclick=()=>changeZoom(.25);$('pitchUp').onclick=()=>{viewport.scrollTop=Math.max(0,viewport.scrollTop-12*ROW);drawCanvas();};$('pitchDown').onclick=()=>{viewport.scrollTop+=12*ROW;drawCanvas();};$('jumpSelected').onclick=()=>{const n=getNote();if(!n)return message('グラフで音を選択してください。');viewport.scrollTop=Math.max(0,worldY(n.pitch)-viewport.clientHeight/2);viewport.scrollLeft=Math.max(0,LEFT+n.start*BEATPX()-viewport.clientWidth/3);drawCanvas();};$('undo').onclick=()=>restoreHistory(historyIndex-1);$('redo').onclick=()=>restoreHistory(historyIndex+1);
     $('arrangement').addEventListener('change',e=>{if(!e.target.matches('.gapCtrl input'))return;const s=st.sections.find(s=>s.id===e.target.closest('[data-id]')?.dataset.id);if(!s)return;s.gap=roundBeat(num(e.target.value,0,64));checkpoint();renderArrangement();});
-    $('saveProject').onclick=exportProject;$('loadProject').onclick=()=>$('loadInput').click();$('loadInput').onchange=e=>{importProject(e.target.files?.[0]);e.target.value='';};$('exportWav').onclick=exportWav;$('exportMidi').onclick=exportMidi;$('exportVoice').onclick=()=>void exportForVoice();
+    $('saveProject').onclick=exportProject;$('loadProject').onclick=()=>$('loadInput').click();$('loadInput').onchange=e=>{importProject(e.target.files?.[0]);e.target.value='';};$('exportWav').onclick=exportWav;$('exportMelodyStem').onclick=()=>exportStem('melody');$('exportChordStem').onclick=()=>exportStem('chords');$('exportMidi').onclick=exportMidi;$('exportVoice').onclick=()=>void exportForVoice();
     document.addEventListener('keydown',e=>{const tag=document.activeElement?.tagName;if(['INPUT','TEXTAREA','SELECT'].includes(tag))return;if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();restoreHistory(historyIndex+(e.shiftKey?1:-1));}else if(e.key==='ArrowUp'&&getNote()){e.preventDefault();nudgeNote(1,0);}else if(e.key==='ArrowDown'&&getNote()){e.preventDefault();nudgeNote(-1,0);}else if(e.key==='ArrowLeft'&&getNote()){e.preventDefault();nudgeNote(0,-st.grid);}else if(e.key==='ArrowRight'&&getNote()){e.preventDefault();nudgeNote(0,st.grid);}else if(e.key===' '){e.preventDefault();playing?stopPlay():startPlay('section');}});
     window.addEventListener('resize',()=>resizeCanvas());document.addEventListener('visibilitychange',()=>{if(document.hidden){stopPlay();stopChordPreview();}});
   }
