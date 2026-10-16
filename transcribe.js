@@ -13,7 +13,7 @@
   let source,processor,quiet;
   try{
    await new Promise((resolve,reject)=>{video.onloadedmetadata=resolve;video.onerror=()=>reject(Error('この動画形式はSafariで再生できません。'));});
-   if(!Number.isFinite(video.duration)||video.duration>90)throw Error('動画は90秒以下に切り出してください。');
+   if(!Number.isFinite(video.duration)||video.duration>300)throw Error('動画は5分以下に切り出してください。');
    const chunks=[];let length=0;
    source=context.createMediaElementSource(video);processor=context.createScriptProcessor(2048,2,1);quiet=context.createGain();quiet.gain.value=0;
    processor.onaudioprocess=ev=>{const input=ev.inputBuffer,part=new Float32Array(input.length);for(let c=0;c<input.numberOfChannels;c++){const channel=input.getChannelData(c);for(let j=0;j<part.length;j++)part[j]+=channel[j]/input.numberOfChannels;}chunks.push(part);length+=part.length;};
@@ -28,7 +28,7 @@
  }
  input.onchange=async e=>{
   const file=e.target.files?.[0];input.value='';if(!file)return;
-  if(file.size>120*1024*1024){status.textContent='120MB以下の音声・動画を選んでください。';return;}
+  if(file.size>250*1024*1024){status.textContent='250MB以下の音声・動画を選んでください。';return;}
   button.disabled=true;status.textContent='端末内で音声を解析中…';await new Promise(r=>setTimeout(r,60));
   let context;
   try{
@@ -37,7 +37,7 @@
    const isVideo=file.type.startsWith('video/')||/\.(mp4|mov|webm|m4v)$/i.test(file.name);
    if(isVideo){status.textContent='動画の音声を端末内で抽出中…（動画の長さだけ時間がかかります）';decoded=await decodeVideo(file,context);}
    else decoded=await context.decodeAudioData(await file.arrayBuffer());
-   if(decoded.duration>120)throw Error('解析できる音声は最長2分です。短く切り出して読み込んでください。');
+   if(decoded.duration>(modeLimit()))throw Error('読み取り上限は単音10分・和音3分です。長い場合は分割してください。');
    const rate=11025,hop=512,size=2048,step=decoded.sampleRate/rate;
    const data=new Float32Array(Math.floor(decoded.length/step));
    const channels=decoded.numberOfChannels,source=Array.from({length:channels},(_,c)=>decoded.getChannelData(c));
@@ -64,6 +64,7 @@
    const range=$('transcribePitchRange')?.value||'wide';
    const bounds=range==='voice'?[48,84]:range==='low'?[36,72]:[36,96];
    for(let at=0;at+size<data.length;at+=hop){
+    if((Math.floor(at/hop)%96)===0){status.textContent='単音解析中… '+Math.min(100,Math.round(at/data.length*100))+'%';await new Promise(r=>setTimeout(r,0));}
     let rms=0;for(let j=0;j<size;j+=4)rms+=data[at+j]**2;rms=Math.sqrt(rms/(size/4));
     if(rms<sensitivity){frames.push(null);continue;}
     // Normalized difference autocorrelation. This is intentionally tuned for ONE pitched source.

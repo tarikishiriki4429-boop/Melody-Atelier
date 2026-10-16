@@ -227,3 +227,13 @@
 .editorChordRow input{width:70px;min-height:36px}
 .editorChordRow select{max-width:130px;min-height:36px}
 .editorChordRow button{min-width:35px;min-height:36px}
+
+/* v0.8.0: selection clipboard stays folded to preserve editing space. */
+.noteClipboardTools>summary{display:flex;align-items:center;gap:7px}
+.noteClipboardTools>summary span{font-size:11px;font-weight:400;opacity:.75}
+.noteClipboardBody{padding:8px 10px 12px}
+.noteClipboardActions{display:flex;flex-wrap:wrap;gap:6px}
+.noteClipboardActions button{min-height:39px}
+.notePastePosition{display:flex;align-items:center;gap:8px;margin:9px 0;font-size:12px}
+.notePastePosition input{width:110px;max-width:50%;min-height:38px}
+.noteClipboardHint{font-size:11px;opacity:.8}
