@@ -183,3 +183,15 @@
 .noteEditDisclosure .inspector{border:0;border-radius:0}
 .noteActionMenu #menuEditDetails{min-height:38px;background:#17624e;border-color:#3aab85;color:white}
 @media(max-width:640px){.noteEditDisclosure>summary{align-items:flex-start;flex-direction:column;gap:3px}.noteEditDisclosure>summary span{font-size:10px}}
+
+/* v0.7.3: compact playback controls persist near the editable piano roll. */
+.quickSelectedPlayback{position:sticky;bottom:12px;z-index:24;display:flex;justify-content:flex-end;gap:6px;pointer-events:none;margin:4px 10px -1px 0}
+.quickSelectedPlayback button{pointer-events:auto;min-height:43px;box-shadow:0 4px 14px #0005;border-radius:13px;font-weight:750;touch-action:manipulation}
+.quickSelectedPlay{background:#19735a!important;color:#fff!important;border:1px solid #48ae91!important;padding:9px 13px!important}
+.quickSelectedStop{background:#273438!important;color:#fff!important;border:1px solid #6e8582!important;min-width:43px}
+.quickSelectedPlay:disabled{opacity:.45}
+@media(min-width:900px){.quickSelectedPlayback{bottom:16px}}
+
+/* v0.7.4: minimal, non-overlaying play button. Never covers notes or editing gestures. */
+.quickSelectedPlayback{position:static!important;bottom:auto!important;z-index:auto!important;display:flex!important;justify-content:flex-end!important;margin:2px 2px 4px 0!important;gap:0!important;height:29px!important;pointer-events:auto!important}
+.quickSelectedPlayback .quickSelectedPlay{width:29px!important;height:29px!important;min-width:29px!important;min-height:29px!important;max-width:29px!important;padding:0!important;border-radius:7px!important;font-size:13px!important;line-height:1!important;box-shadow:none!important}
