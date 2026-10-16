@@ -283,3 +283,6 @@
 .chordNoVocal .trimGapOption{display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:normal}
 
 .liveRecordControls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px;border:1px solid #405b66;border-radius:8px;margin:6px 7px}.liveRecordControls button{min-height:34px}.liveRecordControls label{font-size:12px}.liveRecordControls select{min-height:32px}.liveRecordControls span{font-size:11px;opacity:.85}
+
+.melodyTabSolo{border:1px solid #ef9b43;border-radius:9px;background:#53351e;color:#ffe1ae;font-weight:700;padding:8px 11px;min-height:38px;white-space:nowrap;cursor:pointer;flex-shrink:0}
+.melodyTabSolo:active{filter:brightness(1.3)}
