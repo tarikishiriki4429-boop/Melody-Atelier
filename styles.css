@@ -202,3 +202,15 @@
 .advancedAudioReadGrid label{display:flex;flex-direction:column;gap:5px;font-size:13px}
 .advancedAudioReadGrid select{max-width:100%;min-height:40px}
 .advancedAudioRead .tinyHint{padding:0 12px 12px}
+
+/* v0.7.6: compact secondary tools; the melody tabs remain directly accessible. */
+.compactToolDetails{border:1px solid #43565a;border-radius:10px;margin-top:6px;min-width:0}
+.compactToolDetails>summary{padding:8px 11px;min-height:38px;font-size:12px;font-weight:700;cursor:pointer;list-style:none;touch-action:manipulation}
+.compactToolDetails>summary::-webkit-details-marker{display:none}
+.compactToolDetails[open]>summary{border-bottom:1px solid #43565a}
+.compactToolDetails .melodyTabOptions,.compactToolDetails .transcribeRow{padding:8px;gap:8px}
+.tabMergeTools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px}
+.tabMergeTools label{font-size:12px}
+.tabMergeTools select{max-width:210px;min-height:38px}
+.tabMergeTools small{width:100%;font-size:11px;opacity:.78}
+@media(max-width:620px){.compactToolDetails>summary{font-size:12px}.tabMergeTools{align-items:stretch;flex-direction:column}}

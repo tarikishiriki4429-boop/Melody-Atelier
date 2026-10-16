@@ -557,6 +557,32 @@
     if(kind==='duplicate'){if(section.melodyTabs.length>=12)return message('最大12タブです。');const clone={id:makeId('t'),name:tab.name+' コピー',notes:tab.notes.map(n=>({...n,id:makeId()}))};section.melodyTabs.splice(section.melodyTabs.indexOf(tab)+1,0,clone);section.activeMelodyTab=clone.id;section.notes=clone.notes;selectedNote=null;}
     if(kind==='delete'){if(section.melodyTabs.length===1)return message('最低1タブ必要です。');if(!confirm('「'+tab.name+'」を削除しますか？（元に戻す可能）'))return;section.melodyTabs=section.melodyTabs.filter(t=>t.id!==tab.id);section.activeMelodyTab=section.melodyTabs[0].id;section.notes=section.melodyTabs[0].notes;selectedNote=null;}
     checkpoint();renderAll();}
+  function updateMergeOptions(){
+    const select=$('mergeSourceTab');if(!select)return;
+    const section=getSection();syncTab(section);
+    const previous=select.value;select.replaceChildren();
+    for(const tab of ensureTabs(section)){
+      if(tab.id===section.activeMelodyTab)continue;
+      const option=new Option(tab.name+'（'+tab.notes.length+'音）',tab.id);select.add(option);
+    }
+    if([...select.options].some(x=>x.value===previous))select.value=previous;
+    $('mergeMelodyTab').disabled=!select.options.length;
+  }
+  function mergeTabs(){
+    const section=getSection();syncTab(section);
+    const destination=activeTab(section),source=ensureTabs(section).find(t=>t.id===$('mergeSourceTab').value);
+    if(!source||source.id===destination.id)return message('結合元のタブを選んでください。');
+    if(!source.notes.length)return message('結合元のタブに音符がありません。');
+    if(destination.notes.length+source.notes.length>3000)return message('結合後の音符数が3000音を超えます。');
+    const remove=$('mergeRemoveSource').checked;
+    if(!confirm('「'+source.name+'」の'+source.notes.length+'音を「'+destination.name+'」に重ねて結合します。'+(remove?'結合元タブは削除されます。':'結合元タブは残ります。')+' 続けますか？'))return;
+    const copies=source.notes.map(n=>({...n,id:makeId()}));
+    destination.notes.push(...copies);
+    destination.notes.sort((x,y)=>x.start-y.start||x.pitch-y.pitch);
+    if(remove)section.melodyTabs=section.melodyTabs.filter(t=>t.id!==source.id);
+    section.notes=destination.notes;selectedNote=copies[0]?.id||null;groupIds.clear();
+    checkpoint();renderAll();message(source.notes.length+'音を結合しました。');
+  }
   const getNote=()=>getSection()?.notes.find(n=>n.id===selectedNote);
   const copy=o=>JSON.parse(JSON.stringify(o));
   const projectSnapshot=()=>{st.sections.forEach(syncTab);return {version:1,title:st.title,bpm:st.bpm,beats:st.beats,sound:st.sound,volume:st.volume,metro:st.metro,chordAlong:st.chordAlong,snap:st.snap,zoom:st.zoom,grid:st.grid,pitchNotation:st.pitchNotation,sections:copy(st.sections),selectedSection:st.selectedSection};};
@@ -592,7 +618,7 @@
   function renderArrangement(){const parent=$('arrangement');parent.replaceChildren();for(const s of st.sections){const d=document.createElement('div');d.className='arrangeBlock'+(s.id===st.selectedSection?' sel':'');d.dataset.id=s.id;d.innerHTML='<strong></strong><small></small><div class="gapCtrl"><span>次までの間</span><input type="number" min="0" max="64" step="0.25" aria-label="次のブロックまでの空白（拍）"><span>拍</span></div>';d.querySelector('strong').textContent=s.name;d.querySelector('small').textContent=`${getLength(s)}拍 · ${ROOTS[s.root]} ${s.mode==='minor'?'m':'Maj'}`;d.querySelector('input').value=s.gap;d.querySelector('input').disabled=!getLength(s);d.querySelector('strong').onclick=()=>selectSection(s.id);parent.append(d);}}
   function renderKeyControls(){const s=getSection();$('keyRoot').value=s.root;$('keyMode').value=s.mode;$('keyInfo').textContent=`${rootName(s.root)} ${s.mode==='major'?'メジャー':'マイナー'} （ブロック別に転調可）`;$('noteCount').textContent=`音の数：${s.notes.length}`;$('durationInfo').textContent=`長さ：${getLength(s)}拍`;}
   function renderInspector(){const n=getNote(),disabled=!n;$('nudgeBeatLeft').textContent=`← ${st.grid}拍`;$('nudgeBeatRight').textContent=`${st.grid}拍 →`;renderGroupStatus();$('selectedNoteTitle').textContent=n?`「${n.kana} / ${romaji(n.kana)}」 — ${noteName(n.pitch)}`:'空白をタップして音を追加';for(const id of ['notePitch','noteStart','noteDur','deleteNote','playNote','playFromSelected','playFromInspector','quickPlaySelected'])$(id).disabled=disabled;if(n){$('noteStart').step=String(st.grid);$('noteDur').step=String(st.grid);$('notePitch').value=n.pitch;$('noteStart').value=n.start;$('noteDur').value=n.dur;}else{$('noteStart').value='';$('noteDur').value='';}}
-  function renderAll(){syncInputs();refreshPitchNotation();$('gridStep').value=String(st.grid);renderGroupStatus();renderSections();renderChips();renderArrangement();renderKeyControls();renderInspector();renderTabs();resizeCanvas();updateZoom();renderChords();renderAutoHarmony();renderChordTimeline();updateHistoryButtons();const secs=timeline().totalBeats*60/st.bpm;$('timeDisplay').textContent=`00:00 / ${stamp(secs)}`;$('songLength').textContent=`曲全体 ${stamp(secs)} / ガイド音声は最大15:00`;}
+  function renderAll(){syncInputs();refreshPitchNotation();$('gridStep').value=String(st.grid);renderGroupStatus();renderSections();renderChips();renderArrangement();renderKeyControls();renderInspector();renderTabs();updateMergeOptions();resizeCanvas();updateZoom();renderChords();renderAutoHarmony();renderChordTimeline();updateHistoryButtons();const secs=timeline().totalBeats*60/st.bpm;$('timeDisplay').textContent=`00:00 / ${stamp(secs)}`;$('songLength').textContent=`曲全体 ${stamp(secs)} / ガイド音声は最大15:00`;}
   function selectSection(id){if(!st.sections.some(s=>s.id===id))return;selectedTimedChord=null;groupIds.clear();marquee=null;st.selectedSection=id;selectedNote=getSection().notes[0]?.id||null;syncInputs();renderSections();renderChips();renderArrangement();renderKeyControls();renderInspector();renderTabs();resizeCanvas(true);renderChords();renderChordTimeline();autoRange.sectionId=null;autoCandidates=[];renderAutoHarmony();saveSoon();}
   function sectionReorder(id,dir){const i=st.sections.findIndex(s=>s.id===id),j=i+dir;if(i<0||j<0||j>=st.sections.length)return;[st.sections[i],st.sections[j]]=[st.sections[j],st.sections[i]];checkpoint();renderAll();}
   function sectionDuplicate(id){const src=st.sections.find(s=>s.id===id);if(!src)return;if(st.sections.length>=50)return message('ブロックは最大50個までです。');const old=st.sections.findIndex(s=>s.id===id),s=copy(src);s.id=makeId('s');s.name=src.name+'②';if(s.melodyTabs){const oldActive=s.activeMelodyTab;for(const tab of s.melodyTabs){const prevId=tab.id;tab.id=makeId('t');if(prevId===oldActive)s.activeMelodyTab=tab.id;for(const n of tab.notes)n.id=makeId();}s.notes=s.melodyTabs.find(t=>t.id===s.activeMelodyTab).notes;}else s.notes.forEach(n=>n.id=makeId());if(s.chordClips)s.chordClips.forEach(c=>c.id=makeId('c'));st.sections.splice(old+1,0,s);st.selectedSection=s.id;selectedNote=s.notes[0]?.id||null;checkpoint();renderAll();message('歌詞・音程・長さをまとめて複製しました。');}
@@ -951,8 +977,23 @@
     for(const n of p.events){add(n.beat,2,[0x90,Math.round(n.pitch),95]);add(n.beat,3,meta(0x05,[...enc.encode(n.kana)]));add(n.beat+n.duration,1,[0x80,Math.round(n.pitch),0]);}
     add(0,1,[0xc1,0]);for(const ch of rhythmChords(chordTimelineEvents(p),p)){for(const note of ch.pitches){add(ch.beat,2,[0x91,Math.round(note),62]);add(ch.beat+ch.duration*.9,1,[0x81,Math.round(note),0]);}}
     midiEvents.sort((a,b)=>a.tick-b.tick||a.priority-b.priority);const bytes=[];let last=0;for(const e of midiEvents){bytes.push(...varLen(e.tick-last),...e.data);last=e.tick;}bytes.push(0,0xff,0x2f,0);const track=new Uint8Array(bytes),buff=new ArrayBuffer(14+8+track.length),v=new DataView(buff);const word=(off,s)=>{for(let i=0;i<s.length;i++)v.setUint8(off+i,s.charCodeAt(i));};word(0,'MThd');v.setUint32(4,6);v.setUint16(8,0);v.setUint16(10,1);v.setUint16(12,ppq);word(14,'MTrk');v.setUint32(18,track.length);new Uint8Array(buff,22).set(track);download(new Blob([buff],{type:'audio/midi'}),filename()+'.mid');message('MIDIを書き出しました。音程と長さを対応ソフトに渡せます。');}
-  window.MelodyAtelierImportNotes=(notes)=>{const section=getSection();if(!Array.isArray(notes)||!notes.length)return false;if(notes.length>500)notes=notes.slice(0,500);if(section.notes.length&&!confirm('現在のタブに解析結果を追加しますか？（元の音は残ります）'))return false;for(const note of notes){section.notes.push({id:makeId(),kana:'ラ',pitch:Math.round(num(note.pitch,MIDI_MIN,MIDI_MAX)),start:fineNote(num(note.start,0,MAX_SECTION_BEATS)),dur:fineNote(num(note.dur,.0625,32))});}selectedNote=section.notes.at(-1)?.id||null;checkpoint();renderAll();return true;};
+  window.MelodyAtelierImportNotes=(notes)=>{
+    const section=getSection();if(!Array.isArray(notes)||!notes.length)return false;
+    if(notes.length>500)notes=notes.slice(0,500);
+    if(section.notes.length+notes.length>3000){message('現在のタブの音符数が3000音を超えます。');return false;}
+    const placement=$('transcribePlacement')?.value||'start';
+    const current=getNote();
+    const end=section.notes.length?Math.max(...section.notes.map(n=>n.start+n.dur)):0;
+    const offset=placement==='selected'?(current?current.start+current.dur:end):placement==='end'?end:0;
+    const maxEnd=Math.max(...notes.map(n=>Number(n.start||0)+Number(n.dur||0)));
+    if(offset+maxEnd>MAX_SECTION_BEATS){message('貼り付け先がブロックの最大拍数を超えます。');return false;}
+    if(section.notes.length&&!confirm('現在のタブに'+notes.length+'音を'+(placement==='start'?'先頭から':placement==='end'?'末尾から':'選択音の直後から')+'追加しますか？（元の音は残ります）'))return false;
+    const imported=notes.map(note=>({id:makeId(),kana:'ラ',pitch:Math.round(num(note.pitch,MIDI_MIN,MIDI_MAX)),start:fineNote(num(Number(note.start)+offset,0,MAX_SECTION_BEATS)),dur:fineNote(num(note.dur,.0625,32))}));
+    section.notes.push(...imported);section.notes.sort((x,y)=>x.start-y.start||x.pitch-y.pitch);
+    selectedNote=imported[0]?.id||null;checkpoint();renderAll();return true;
+  };
   function bindControls(){
+    $('mergeMelodyTab').onclick=mergeTabs;
     $('addMelodyTab').onclick=addTab;$('renameMelodyTab').onclick=()=>tabAction('rename');$('duplicateMelodyTab').onclick=()=>tabAction('duplicate');$('deleteMelodyTab').onclick=()=>tabAction('delete');$('tabPlaybackMode').onchange=e=>{tabPlayback=e.target.value==='solo'?'solo':'all';};
     for(let i=0;i<12;i++){const option=new Option(ROOTS[i],i);$('keyRoot').add(option);}for(let p=MIDI_MAX;p>=MIDI_MIN;p--){$('notePitch').add(new Option(noteName(p),p));}
     $('pitchNotation').onchange=e=>{st.pitchNotation=e.target.value==='solfege'?'solfege':'letter';refreshPitchNotation();renderKeyControls();renderInspector();$('noteActionMenu').hidden=true;drawCanvas();checkpoint();};
