@@ -274,3 +274,6 @@
 .compactMenuRail>.railPanel[open]>.editorTransportHeading{padding:8px}
 .compactMenuRail>.railPanel[open]>.editorTransportButtons{padding:6px}
 @media(min-width:700px){.compactMenuRail>.railPanel>summary{font-size:12px!important}}
+
+/* Two-finger gestures are handled by the canvas; do not zoom the whole page. */
+.canvasScroller canvas{touch-action:none!important;}
