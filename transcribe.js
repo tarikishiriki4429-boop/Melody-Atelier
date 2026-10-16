@@ -37,12 +37,14 @@
    const isVideo=file.type.startsWith('video/')||/\.(mp4|mov|webm|m4v)$/i.test(file.name);
    if(isVideo){status.textContent='動画の音声を端末内で抽出中…（動画の長さだけ時間がかかります）';decoded=await decodeVideo(file,context);}
    else decoded=await context.decodeAudioData(await file.arrayBuffer());
-   if(decoded.duration>(modeLimit()))throw Error('読み取り上限は単音10分・和音3分です。長い場合は分割してください。');
+   const selectedMode=$('transcribeMode')?.value||'mono';
+   const durationLimit=selectedMode==='poly'?180:600;
+   if(decoded.duration>durationLimit)throw Error(selectedMode==='poly'?'和音読み取りは3分以下の音声にしてください。':'単音読み取りは10分以下の音声にしてください。');
    const rate=11025,hop=512,size=2048,step=decoded.sampleRate/rate;
    const data=new Float32Array(Math.floor(decoded.length/step));
    const channels=decoded.numberOfChannels,source=Array.from({length:channels},(_,c)=>decoded.getChannelData(c));
    for(let i=0;i<data.length;i++){const idx=Math.floor(i*step);let v=0;for(const ch of source)v+=ch[idx]||0;data[i]=v/channels;}
-   const mode=$('transcribeMode')?.value||'mono';
+   const mode=selectedMode;
    if(mode==='poly'){
     status.textContent='倍音を考慮して複数の音程を推定中…';await new Promise(r=>setTimeout(r,25));
     if(!window.MelodyPolyphonic)throw Error('和音解析モジュールを読み込めませんでした。');
