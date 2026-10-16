@@ -173,3 +173,13 @@
 .editorTransportHeading{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}.editorTransportHeading span,.editorTransport small{font-size:11px;opacity:.75}
 .editorTransportButtons{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:7px 0}.editorTransportButtons button{min-height:43px;min-width:112px;flex:1 1 125px;touch-action:manipulation}.chordButtons{border-top:1px solid #8883;padding-top:8px}.chordButtonsLabel{font-weight:700;font-size:12px;min-width:72px}
 @media(max-width:550px){.editorTransportButtons button{min-width:calc(50% - 7px);flex:1 1 calc(50% - 7px)}.editorTransport{top:0;padding:8px}}
+
+/* v0.7.2: Restore a prominent green, expandable sound editor without removing any controls. */
+.noteEditDisclosure{margin:12px 0;border:1px solid #3e8c79;border-radius:14px;background:#112c29;overflow:hidden}
+.noteEditDisclosure>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 15px;min-height:54px;background:#17624e;color:#f0fff9;font-size:15px;font-weight:750;touch-action:manipulation}
+.noteEditDisclosure>summary::-webkit-details-marker{display:none}
+.noteEditDisclosure>summary span{font-size:11px;font-weight:500;color:#d2f5e6}
+.noteEditDisclosure[open]>summary{background:#21745d}
+.noteEditDisclosure .inspector{border:0;border-radius:0}
+.noteActionMenu #menuEditDetails{min-height:38px;background:#17624e;border-color:#3aab85;color:white}
+@media(max-width:640px){.noteEditDisclosure>summary{align-items:flex-start;flex-direction:column;gap:3px}.noteEditDisclosure>summary span{font-size:10px}}

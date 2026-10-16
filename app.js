@@ -780,6 +780,7 @@
       else if(d.noteId&&!cancelled){/* The note was already auditioned on pointer-down (iPad gesture). */}
       drawCanvas();};
     el.addEventListener('pointerup',e=>finish(e,false));el.addEventListener('pointercancel',e=>finish(e,true));el.addEventListener('lostpointercapture',e=>{if(drag&&drag.pointerId===e.pointerId)finish(e,true);});
+    $('menuEditDetails').onclick=()=>{hideNoteMenu();const panel=$('noteEditDisclosure');panel.open=true;panel.scrollIntoView({block:'nearest',behavior:'smooth'});renderInspector();};
     $('menuDelete').onclick=()=>{hideNoteMenu();deleteNote();};$('menuPreview').onclick=()=>{hideNoteMenu();playOne();};$('menuClose').onclick=hideNoteMenu;
     viewport.addEventListener('scroll',()=>requestAnimationFrame(drawCanvas),{passive:true});
   }
