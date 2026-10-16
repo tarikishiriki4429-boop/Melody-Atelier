@@ -277,3 +277,9 @@
 
 /* Two-finger gestures are handled by the canvas; do not zoom the whole page. */
 .canvasScroller canvas{touch-action:none!important;}
+
+/* v0.8.9: compact trim action by section length controls */
+.chordNoVocal #trimSectionTail{background:#29473e;border-color:#508a74;color:#e3f8ed}
+.chordNoVocal .trimGapOption{display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:normal}
+
+.liveRecordControls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px;border:1px solid #405b66;border-radius:8px;margin:6px 7px}.liveRecordControls button{min-height:34px}.liveRecordControls label{font-size:12px}.liveRecordControls select{min-height:32px}.liveRecordControls span{font-size:11px;opacity:.85}

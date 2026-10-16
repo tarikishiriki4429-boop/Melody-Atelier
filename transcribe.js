@@ -26,8 +26,8 @@
    return {sampleRate:context.sampleRate,length,numberOfChannels:1,getChannelData:()=>data,duration:length/context.sampleRate};
   }finally{video.pause();video.removeAttribute('src');video.load();processor?.disconnect();source?.disconnect();quiet?.disconnect();URL.revokeObjectURL(url);}
  }
- input.onchange=async e=>{
-  const file=e.target.files?.[0];input.value='';if(!file)return;
+ async function transcribeFile(file){
+  if(!file)return;
   if(file.size>250*1024*1024){status.textContent='250MB以下の音声・動画を選んでください。';return;}
   button.disabled=true;status.textContent='端末内で音声を解析中…';await new Promise(r=>setTimeout(r,60));
   let context;
@@ -104,5 +104,7 @@
    status.textContent=`${notes.length}音を現在のタブに追加しました。音程と長さを確認して修正してください。`;
   }catch(err){status.textContent='譜面化できません：'+err.message;}
   finally{button.disabled=false;try{await context?.close();}catch(_){}}
- };
+ }
+ input.onchange=async e=>{const file=e.target.files?.[0];input.value='';await transcribeFile(file);};
+ window.MelodyAtelierTranscribeFile=transcribeFile;
 })();

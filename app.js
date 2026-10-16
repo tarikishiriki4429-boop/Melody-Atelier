@@ -624,6 +624,21 @@
     });
     $('playChordTrack').onclick=previewTimedChords;$('addTimedChord').onclick=addTimedChord;$('editChordLibrary').onclick=()=>{$('chordPanel').open=true;$('chordPanel').scrollIntoView({block:'start',behavior:'smooth'});};
     $('setSectionBars').onclick=()=>{const s=getSection();s.manualBeats=st.beats*Math.round(num($('sectionBars').value,1,48));checkpoint();renderAll();message('ブロックの最低小節数を変更しました。');};
+    $('trimSectionTail').onclick=()=>{
+      const section=getSection(),before=getLength(section),oldGap=section.gap||0;
+      const notes=allTabNotes(section);
+      const noteEnd=Math.max(0,...notes.map(n=>n.start+n.dur));
+      const chordEnd=Array.isArray(section.chordClips)?Math.max(0,...section.chordClips.map(c=>c.start+c.beats)):(section.chords||[]).reduce((sum,c)=>sum+c.beats,0);
+      const harmonyEnd=Math.max(0,...(section.harmonies||[]).map(c=>c.start+c.beats));
+      const contentEnd=Math.max(noteEnd,chordEnd,harmonyEnd);
+      const after=contentEnd?Math.ceil(contentEnd/st.beats)*st.beats:0;
+      const gap=$('trimSectionGap').checked?0:oldGap;
+      if(after===before&&gap===oldGap)return message('このブロックの末尾に削除できる空白はありません。');
+      const saved=before-after+oldGap-gap;
+      if(!confirm('「'+section.name+'」の末尾の空白を '+(before-after)+'拍短縮'+(gap!==oldGap?'、次のブロックまでの空白 '+oldGap+'拍を削除':'')+'します。\n音符とコードは削除しません。後続ブロックは '+saved+'拍前へ移動します。続けますか？'))return;
+      section.manualBeats=0;section.gap=gap;
+      checkpoint();renderAll();message('末尾の空白をカットしました。'+saved+'拍短縮しました。');
+    };
     $('deleteTimedChord').onclick=removeTimedChord;
     for(const [id,key] of [['chordClipStart','start'],['chordClipLength','beats'],['chordClipDegree','degree'],['chordClipAlter','alter'],['chordClipQuality','quality']])$(id).onchange=e=>changeTimedChord(key,e.target.value);
     for(const [id,key,offset] of [['timedChordLeft','start',-.25],['timedChordRight','start',.25],['timedChordShorter','beats',-.25],['timedChordLonger','beats',.25]])$(id).onclick=()=>{const cur=selectedTimed();if(cur?.c)changeTimedChord(key,cur.c[key]+offset);};
