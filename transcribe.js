@@ -44,13 +44,23 @@
    const data=new Float32Array(Math.floor(decoded.length/step));
    const channels=decoded.numberOfChannels,source=Array.from({length:channels},(_,c)=>decoded.getChannelData(c));
    for(let i=0;i<data.length;i++){const idx=Math.floor(i*step);let v=0;for(const ch of source)v+=ch[idx]||0;data[i]=v/channels;}
+   // Auto gain for quiet voice memos. Robust RMS percentile avoids silence-driven gain.
+   const windowSize=2048,levels=[];
+   for(let at=0;at+windowSize<=data.length;at+=windowSize){let sum=0;for(let j=0;j<windowSize;j+=8)sum+=data[at+j]*data[at+j];levels.push(Math.sqrt(sum/(windowSize/8)));}
+   levels.sort((a,b)=>a-b);
+   const activeLevel=levels[Math.min(levels.length-1,Math.floor(levels.length*.85))]||0;
+   if(activeLevel<0.000008)throw Error('音声がほぼ無音です。録音の音量を確認してください。');
+   const gain=Math.min(200,Math.max(1,0.06/activeLevel));
+   if(gain>1.01){for(let i=0;i<data.length;i++)data[i]=Math.max(-1,Math.min(1,data[i]*gain));}
+   status.textContent='音量を自動補正（約'+gain.toFixed(1)+'倍）して解析中…';
+   await new Promise(r=>setTimeout(r,0));
    const mode=selectedMode;
    if(mode==='poly'){
     status.textContent='倍音を考慮して複数の音程を推定中…';await new Promise(r=>setTimeout(r,25));
     if(!window.MelodyPolyphonic)throw Error('和音解析モジュールを読み込めませんでした。');
     const sensitivity=Number($('transcribeSensitivity')?.value)||.012;
     const range=$('transcribePitchRange')?.value||'wide';
-    const bounds=range==='voice'?[48,84]:range==='low'?[36,72]:[36,96];
+    const bounds=range==='voice'?[48,84]:range==='low'?[36,72]:range==='high'?[60,108]:[36,108];
     const found=window.MelodyPolyphonic.read(data,rate,{low:bounds[0],high:bounds[1],voices:Number($('transcribeVoices')?.value)||3,threshold:sensitivity,minimum:Number($('transcribeMinimum')?.value)||.12});
     const bpm=Number($('bpm').value)||100,beatsPerSec=bpm/60,quant=Number($('transcribeGrid').value)||.125;
     const notes=found.map(n=>({pitch:n.pitch,start:Math.max(0,Math.round(n.start*beatsPerSec/quant)*quant),dur:Math.max(quant,Math.round(n.dur*beatsPerSec/quant)*quant)}));
@@ -64,13 +74,13 @@
    const confidence=Number($('transcribeConfidence')?.value)||.82;
    const smoothing=Math.max(0,Number($('transcribeSmoothing')?.value)||0);
    const range=$('transcribePitchRange')?.value||'wide';
-   const bounds=range==='voice'?[48,84]:range==='low'?[36,72]:[36,96];
+   const bounds=range==='voice'?[48,84]:range==='low'?[36,72]:range==='high'?[60,108]:[36,108];
    for(let at=0;at+size<data.length;at+=hop){
     if((Math.floor(at/hop)%96)===0){status.textContent='単音解析中… '+Math.min(100,Math.round(at/data.length*100))+'%';await new Promise(r=>setTimeout(r,0));}
     let rms=0;for(let j=0;j<size;j+=4)rms+=data[at+j]**2;rms=Math.sqrt(rms/(size/4));
     if(rms<sensitivity){frames.push(null);continue;}
     // Normalized difference autocorrelation. This is intentionally tuned for ONE pitched source.
-    let bestLag=0,best=-1;const minLag=11,maxLag=147;
+    let bestLag=0,best=-1;const minLag=5,maxLag=147;
     for(let lag=minLag;lag<=maxLag;lag++){
      let cross=0,a=0,b=0;
      for(let j=0;j<size-lag;j+=3){const x=data[at+j],y=data[at+j+lag];cross+=x*y;a+=x*x;b+=y*y;}
