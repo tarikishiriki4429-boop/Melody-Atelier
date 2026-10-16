@@ -100,7 +100,7 @@
     $('moodChangeMode').onchange=()=>renderMoods();renderMoods();
   }
   const SECTION_COLORS=['#b6a1ff','#7fd2db','#efbb83','#ef96be','#91d7a5','#d8a2d5','#93afe7'];
-  const MIDI_MIN=36,MIDI_MAX=108,ROW=30,LEFT=73,MAX_SECTION_BEATS=4096;
+  const MIDI_MIN=36,MIDI_MAX=108,LEFT=73,MAX_SECTION_BEATS=4096;
   const LOCAL_KEY='melody-atelier-project-v1';
   let selectedTimedChord=null, chordLanePixels=25, chordTrackPointer=null;
   let uid=1,history=[],historyIndex=-1,saveTimer=0,toastTimer=0;
@@ -239,7 +239,8 @@
   }
   
   const initialNames=['Aメロ','Bメロ','サビ','ラスサビ'];
-  const st={title:'新しい曲',bpm:100,beats:4,sound:'piano',volume:85,metro:true,chordAlong:true,snap:true,zoom:1,grid:.125,pitchNotation:'letter',sections:[],selectedSection:null};
+  let ROW=30;
+  const st={title:'新しい曲',bpm:100,beats:4,sound:'piano',volume:85,metro:true,chordAlong:true,snap:true,zoom:1,verticalZoom:1,grid:.125,pitchNotation:'letter',sections:[],selectedSection:null};
   let groupMode=false,groupIds=new Set(),marquee=null;
   const NOTE_GRID_VALUES=[1,.5,.25,.125,.0625];
   const snapGrid=x=>Math.round((x+1e-9)/st.grid)*st.grid;
@@ -696,7 +697,7 @@
   }
   const getNote=()=>getSection()?.notes.find(n=>n.id===selectedNote);
   const copy=o=>JSON.parse(JSON.stringify(o));
-  const projectSnapshot=()=>{st.sections.forEach(syncTab);return {version:1,title:st.title,bpm:st.bpm,beats:st.beats,sound:st.sound,volume:st.volume,metro:st.metro,chordAlong:st.chordAlong,snap:st.snap,zoom:st.zoom,grid:st.grid,pitchNotation:st.pitchNotation,sections:copy(st.sections),selectedSection:st.selectedSection};};
+  const projectSnapshot=()=>{st.sections.forEach(syncTab);return {version:1,title:st.title,bpm:st.bpm,beats:st.beats,sound:st.sound,volume:st.volume,metro:st.metro,chordAlong:st.chordAlong,snap:st.snap,zoom:st.zoom,verticalZoom:st.verticalZoom,grid:st.grid,pitchNotation:st.pitchNotation,sections:copy(st.sections),selectedSection:st.selectedSection};};
   function message(msg,ms=3500){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),ms);}
   function saveSoon(){ $('saveStatus').textContent='変更を保存中…';clearTimeout(saveTimer);saveTimer=setTimeout(()=>{try{localStorage.setItem(LOCAL_KEY,JSON.stringify(projectSnapshot()));$('saveStatus').textContent='この端末に自動保存済み';}catch(e){$('saveStatus').textContent='保存できません（JSONで保存してください）';message('端末保存に失敗しました。プロジェクト保存でファイルを書き出してください。');}},400);}
   function checkpoint(){const x=JSON.stringify(projectSnapshot());if(history[historyIndex]===x)return;history=history.slice(0,historyIndex+1);history.push(x);if(history.length>45)history.shift();historyIndex=history.length-1;updateHistoryButtons();saveSoon();}
@@ -705,7 +706,7 @@
   function makeSection(name,idx){return{id:makeId('s'),name,lyrics:'',reading:'',notes:[],root:0,mode:'major',chords:[],chordClips:null,manualBeats:0,harmonies:[],chordFeel:'sustain',chordName:'',gap:0,color:SECTION_COLORS[idx%SECTION_COLORS.length]};}
   function initDemo(){st.sections=initialNames.map(makeSection);st.sections[0].lyrics='今';st.sections[0].reading='いま';st.sections[0].notes=[{id:makeId(),kana:'い',pitch:64,start:0,dur:1},{id:makeId(),kana:'ま',pitch:67,start:1,dur:1.5}];st.selectedSection=st.sections[0].id;selectedNote=st.sections[0].notes[0].id;}
   function loadData(data){if(!data||data.version!==1||!Array.isArray(data.sections)||data.sections.length>75)throw Error('対応するMelody Atelierのプロジェクトではありません。');
-    st.title=String(data.title||'新しい曲').slice(0,80);st.bpm=num(data.bpm,40,240,100);st.beats=[3,4,6].includes(+data.beats)?+data.beats:4;st.sound=['warm','piano','pure'].includes(data.sound)?data.sound:'piano';st.volume=num(data.volume,0,100,65);st.metro=data.metro!==false;st.chordAlong=data.chordAlong!==false;st.snap=data.snap!==false;st.zoom=num(data.zoom,.25,5,1);st.grid=NOTE_GRID_VALUES.includes(+data.grid)?+data.grid:.125;st.pitchNotation=data.pitchNotation==='solfege'?'solfege':'letter';
+    st.title=String(data.title||'新しい曲').slice(0,80);st.bpm=num(data.bpm,40,240,100);st.beats=[3,4,6].includes(+data.beats)?+data.beats:4;st.sound=['warm','piano','pure'].includes(data.sound)?data.sound:'piano';st.volume=num(data.volume,0,100,65);st.metro=data.metro!==false;st.chordAlong=data.chordAlong!==false;st.snap=data.snap!==false;st.zoom=num(data.zoom,.25,5,1);st.verticalZoom=num(data.verticalZoom,.4,2,1);ROW=Math.round(30*st.verticalZoom);st.grid=NOTE_GRID_VALUES.includes(+data.grid)?+data.grid:.125;st.pitchNotation=data.pitchNotation==='solfege'?'solfege':'letter';
     st.sections=data.sections.map((s,i)=>({id:String(s.id||makeId('s')),name:String(s.name||'パート').slice(0,45),lyrics:String(s.lyrics||'').slice(0,12000),reading:String(s.reading||'').slice(0,12000),root:num(s.root,0,11),mode:s.mode==='minor'?'minor':'major',gap:num(s.gap,0,64),lastMood:String(s.lastMood||'').slice(0,100),chords:normalizeSteps(s.chords),chordClips:Array.isArray(s.chordClips)?s.chordClips.slice(0,800).map((c,j)=>({...chordStepSafe(c),id:String(c.id||makeId('c')).slice(0,90),start:num(c.start,0,MAX_SECTION_BEATS),beats:num(c.beats,.25,128)})):null,manualBeats:num(s.manualBeats,0,MAX_SECTION_BEATS),harmonies:Array.isArray(s.harmonies)?s.harmonies.slice(0,512).map(safeAutoChord):[],chordFeel:CHORD_FEELS.some(f=>f.id===s.chordFeel)?s.chordFeel:'sustain',chordName:String(s.chordName||'').slice(0,55),color:SECTION_COLORS[i%SECTION_COLORS.length],notes:Array.isArray(s.notes)?s.notes.slice(0,3000).map(n=>({id:String(n.id||makeId()),kana:String(n.kana||'ラ').slice(0,8),pitch:num(n.pitch,MIDI_MIN,MIDI_MAX),start:num(n.start,0,MAX_SECTION_BEATS),dur:num(n.dur,.0625,32)})):[]}));
     for(const section of st.sections){const original=data.sections.find(x=>String(x.id)===section.id);if(Array.isArray(original?.melodyTabs)&&original.melodyTabs.length){section.melodyTabs=original.melodyTabs.slice(0,12).map(t=>({id:String(t.id||makeId('t')).slice(0,80),name:String(t.name||'メロディー').slice(0,28),notes:Array.isArray(t.notes)?t.notes.slice(0,3000).map(n=>({id:String(n.id||makeId()),kana:String(n.kana||'ラ').slice(0,8),pitch:num(n.pitch,MIDI_MIN,MIDI_MAX),start:num(n.start,0,MAX_SECTION_BEATS),dur:num(n.dur,.0625,32)})):[]}));section.activeMelodyTab=section.melodyTabs.some(t=>t.id===original.activeMelodyTab)?original.activeMelodyTab:section.melodyTabs[0].id;section.notes=section.melodyTabs.find(t=>t.id===section.activeMelodyTab).notes;}else{section.melodyTabs=[{id:makeId('t'),name:'主旋律',notes:section.notes}];section.activeMelodyTab=section.melodyTabs[0].id;}}
     if(!st.sections.length)st.sections=[makeSection('Aメロ',0)];const ids=st.sections.flatMap(s=>[s.id,...ensureTabs(s).flatMap(t=>[t.id,...t.notes.map(n=>n.id)]),...(s.chordClips||[]).map(c=>c.id)]);uid=Math.max(uid,...ids.map(x=>Number(String(x).replace(/^[^0-9]*/,''))||0))+1;
@@ -754,7 +755,7 @@
   function changeKey(which,value){const s=getSection();s[which]=which==='root'?num(value,0,11):(value==='minor'?'minor':'major');checkpoint();renderKeyControls();renderSections();renderArrangement();drawCanvas();renderChords();renderAutoHarmony();}
   function transpose(amount){const s=getSection();if(!s.notes.length)return message('先に歌詞を音に分けてください。');for(const n of s.notes)n.pitch=num(n.pitch+amount,MIDI_MIN,MIDI_MAX);checkpoint();renderInspector();drawCanvas();}
   function changeZoom(amount){st.zoom=num(st.zoom+amount,.25,5);resizeCanvas();updateZoom();saveSoon();}
-  function updateZoom(){$('zoomVal').textContent=Math.round(st.zoom*100)+'%';}
+  function updateZoom(){$('zoomVal').textContent=Math.round(st.zoom*100)+'% × '+Math.round(st.verticalZoom*100)+'%';}
   const BEATPX=()=>Math.max(12,Math.round(77*st.zoom));
   const worldY=p=>(MIDI_MAX-p)*ROW+3;
   const worldWidth=()=>{const s=getSection(),max=Math.max(st.beats*2,...allTabNotes(s).map(n=>n.start+n.dur));return Math.max(viewport.clientWidth,LEFT+Math.ceil(max+8)*BEATPX());};
@@ -940,8 +941,10 @@
     const [a,b]=[...pinchPointers.values()];
     const rect=el.getBoundingClientRect();
     const midX=(a.x+b.x)/2-rect.left;
-    pinch={distance:Math.max(12,pinchDistance(a,b)),zoom:st.zoom,
-      beat:(viewport.scrollLeft+midX-LEFT)/BEATPX(),midX};
+    const midY=(a.y+b.y)/2-rect.top;
+    pinch={distance:Math.max(12,pinchDistance(a,b)),zoom:st.zoom,verticalZoom:st.verticalZoom,
+      beat:(viewport.scrollLeft+midX-LEFT)/BEATPX(),
+      pitchPosition:(viewport.scrollTop+midY-3)/ROW,midX,midY};
     if(drag?.timer)clearTimeout(drag.timer);
     drag=null;marquee=null;hideNoteMenu();
   }
@@ -950,11 +953,15 @@
     const [a,b]=[...pinchPointers.values()];
     const rect=el.getBoundingClientRect();
     const midX=(a.x+b.x)/2-rect.left;
-    const zoom=num(pinch.zoom*pinchDistance(a,b)/pinch.distance,.25,5);
-    if(Math.abs(zoom-st.zoom)<.004)return;
-    st.zoom=zoom;
+    const scale=pinchDistance(a,b)/pinch.distance;
+    const zoom=num(pinch.zoom*scale,.25,5);
+    const verticalZoom=num(pinch.verticalZoom*scale,.4,2);
+    if(Math.abs(zoom-st.zoom)<.004&&Math.abs(verticalZoom-st.verticalZoom)<.004)return;
+    st.zoom=zoom;st.verticalZoom=verticalZoom;ROW=Math.round(30*verticalZoom);
     resizeCanvas();
+    const midY=(a.y+b.y)/2-rect.top;
     viewport.scrollLeft=Math.max(0,LEFT+pinch.beat*BEATPX()-midX);
+    viewport.scrollTop=Math.max(0,3+pinch.pitchPosition*ROW-midY);
     updateZoom();drawCanvas();
   }
   function bindCanvas(){
