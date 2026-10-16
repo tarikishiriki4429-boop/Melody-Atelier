@@ -237,3 +237,40 @@
 .notePastePosition{display:flex;align-items:center;gap:8px;margin:9px 0;font-size:12px}
 .notePastePosition input{width:110px;max-width:50%;min-height:38px}
 .noteClipboardHint{font-size:11px;opacity:.8}
+
+/* v0.8.4: editing-first compact control strips. All old controls remain inside disclosure. */
+.melodyTabDock .compactToolDetails,
+.noteClipboardTools,.editorTransportDisclosure{margin:3px 0!important}
+.compactToolDetails>summary{min-height:27px!important;padding:4px 9px!important;font-size:11px!important;line-height:1.35!important}
+.editorTransport.compactToolDetails{padding:0!important;min-height:0!important;display:block!important;background:transparent!important}
+.editorTransport.compactToolDetails>summary{display:list-item!important;cursor:pointer!important}
+.editorTransport.compactToolDetails:not([open])>.editorTransportHeading,
+.editorTransport.compactToolDetails:not([open])>.editorTransportButtons,
+.editorTransport.compactToolDetails:not([open])>small{display:none!important}
+.editorTransport.compactToolDetails[open]>.editorTransportHeading,
+.editorTransport.compactToolDetails[open]>.editorTransportButtons{margin:6px!important}
+.editorTransport.compactToolDetails[open]>small{display:block;margin:6px!important}
+.compactToolDetails .transcribeRow{padding:6px!important;gap:5px!important}
+.compactToolDetails .transcribeRow label{font-size:11px!important}
+.advancedAudioRead>summary{min-height:30px!important;padding:5px 9px!important;font-size:11px!important}
+.melodyTabDock{padding-top:3px!important}
+
+/* v0.8.5: four compact tab-like menus, with a single expanded panel below */
+.compactMenuRail{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;margin:4px 0 6px;align-items:start;width:100%}
+.compactMenuRail>.railPanel{grid-column:span 1;min-width:0;margin:0!important;border:1px solid #415d69!important;border-radius:7px!important;overflow:visible;background:#172438!important}
+.compactMenuRail>.railPanel>summary{height:32px!important;min-height:32px!important;padding:6px 2px!important;display:flex!important;align-items:center;justify-content:center;text-align:center;font-size:11px!important;white-space:nowrap;list-style:none;border-radius:6px;cursor:pointer}
+.compactMenuRail>.railPanel>summary::-webkit-details-marker{display:none}
+.compactMenuRail>.railPanel[open]{grid-column:1/-1;display:block!important;border-radius:8px!important;overflow:visible}
+.compactMenuRail>.railPanel[open]>summary{width:25%;background:#236357!important;color:white!important;border-radius:7px 7px 0 0;border-bottom:0!important;position:relative;top:-1px}
+.compactMenuRail>.railPanel[open]>.editorTransportHeading,
+.compactMenuRail>.railPanel[open]>.editorTransportButtons{display:flex!important}
+.compactMenuRail>.railPanel[open]>.editorTransportButtons{flex-wrap:wrap}
+.compactMenuRail>.railPanel[open]>small{display:block!important}
+.compactMenuRail>.railPanel[open]>.melodyTabOptions,
+.compactMenuRail>.railPanel[open]>.transcribeRow,
+.compactMenuRail>.railPanel[open]>.noteClipboardBody,
+.compactMenuRail>.railPanel[open]>.tabMergeTools{padding:8px!important}
+.compactMenuRail>.railPanel[open]>.noteClipboardBody{display:block}
+.compactMenuRail>.railPanel[open]>.editorTransportHeading{padding:8px}
+.compactMenuRail>.railPanel[open]>.editorTransportButtons{padding:6px}
+@media(min-width:700px){.compactMenuRail>.railPanel>summary{font-size:12px!important}}
