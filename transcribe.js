@@ -7,19 +7,56 @@
  const reset=$('transcribeResetAdvanced');
  if(reset)reset.onclick=()=>{for(const [id,value] of [['transcribeSensitivity','0.012'],['transcribeConfidence','0.82'],['transcribeSmoothing','2'],['transcribePitchRange','wide']]){if($(id))$(id).value=value;}};
 
+ async function decodeVideo(file,context){
+  // Real-time extraction of the audio track via Web Audio. No server upload.
+  const url=URL.createObjectURL(file),video=document.createElement('video');video.preload='auto';video.playsInline=true;video.src=url;
+  let source,processor,quiet;
+  try{
+   await new Promise((resolve,reject)=>{video.onloadedmetadata=resolve;video.onerror=()=>reject(Error('この動画形式はSafariで再生できません。'));});
+   if(!Number.isFinite(video.duration)||video.duration>90)throw Error('動画は90秒以下に切り出してください。');
+   const chunks=[];let length=0;
+   source=context.createMediaElementSource(video);processor=context.createScriptProcessor(2048,2,1);quiet=context.createGain();quiet.gain.value=0;
+   processor.onaudioprocess=ev=>{const input=ev.inputBuffer,part=new Float32Array(input.length);for(let c=0;c<input.numberOfChannels;c++){const channel=input.getChannelData(c);for(let j=0;j<part.length;j++)part[j]+=channel[j]/input.numberOfChannels;}chunks.push(part);length+=part.length;};
+   source.connect(processor);processor.connect(quiet);quiet.connect(context.destination);
+   await context.resume();
+   const ended=new Promise((resolve,reject)=>{video.onended=resolve;video.onerror=()=>reject(Error('動画の音声を抽出できませんでした。'));});
+   await video.play();await ended;
+   if(!length)throw Error('動画に読み取れる音声トラックがありません。');
+   const data=new Float32Array(length);let at=0;for(const part of chunks){data.set(part,at);at+=part.length;}
+   return {sampleRate:context.sampleRate,length,numberOfChannels:1,getChannelData:()=>data,duration:length/context.sampleRate};
+  }finally{video.pause();video.removeAttribute('src');video.load();processor?.disconnect();source?.disconnect();quiet?.disconnect();URL.revokeObjectURL(url);}
+ }
  input.onchange=async e=>{
   const file=e.target.files?.[0];input.value='';if(!file)return;
-  if(file.size>45*1024*1024){status.textContent='45MB以下の音声を選んでください。';return;}
+  if(file.size>120*1024*1024){status.textContent='120MB以下の音声・動画を選んでください。';return;}
   button.disabled=true;status.textContent='端末内で音声を解析中…';await new Promise(r=>setTimeout(r,60));
   let context;
   try{
    context=new (window.AudioContext||window.webkitAudioContext)();
-   const decoded=await context.decodeAudioData(await file.arrayBuffer());
+   let decoded;
+   const isVideo=file.type.startsWith('video/')||/\.(mp4|mov|webm|m4v)$/i.test(file.name);
+   if(isVideo){status.textContent='動画の音声を端末内で抽出中…（動画の長さだけ時間がかかります）';decoded=await decodeVideo(file,context);}
+   else decoded=await context.decodeAudioData(await file.arrayBuffer());
    if(decoded.duration>120)throw Error('解析できる音声は最長2分です。短く切り出して読み込んでください。');
    const rate=11025,hop=512,size=2048,step=decoded.sampleRate/rate;
    const data=new Float32Array(Math.floor(decoded.length/step));
    const channels=decoded.numberOfChannels,source=Array.from({length:channels},(_,c)=>decoded.getChannelData(c));
    for(let i=0;i<data.length;i++){const idx=Math.floor(i*step);let v=0;for(const ch of source)v+=ch[idx]||0;data[i]=v/channels;}
+   const mode=$('transcribeMode')?.value||'mono';
+   if(mode==='poly'){
+    status.textContent='倍音を考慮して複数の音程を推定中…';await new Promise(r=>setTimeout(r,25));
+    if(!window.MelodyPolyphonic)throw Error('和音解析モジュールを読み込めませんでした。');
+    const sensitivity=Number($('transcribeSensitivity')?.value)||.012;
+    const range=$('transcribePitchRange')?.value||'wide';
+    const bounds=range==='voice'?[48,84]:range==='low'?[36,72]:[36,96];
+    const found=window.MelodyPolyphonic.read(data,rate,{low:bounds[0],high:bounds[1],voices:Number($('transcribeVoices')?.value)||3,threshold:sensitivity,minimum:Number($('transcribeMinimum')?.value)||.12});
+    const bpm=Number($('bpm').value)||100,beatsPerSec=bpm/60,quant=Number($('transcribeGrid').value)||.125;
+    const notes=found.map(n=>({pitch:n.pitch,start:Math.max(0,Math.round(n.start*beatsPerSec/quant)*quant),dur:Math.max(quant,Math.round(n.dur*beatsPerSec/quant)*quant)}));
+    if(!notes.length)throw Error('和音の候補が見つかりませんでした。感度や音源を変えてください。');
+    if(!window.MelodyAtelierImportNotes?.(notes))throw Error('追加を中止しました。');
+    status.textContent=`実験的な和音解析で${notes.length}音を追加しました。倍音の誤検出や抜けがないか必ず確認してください。`;
+    return;
+   }
    const frames=[];let lastMidi=null;
    const sensitivity=Number($('transcribeSensitivity')?.value)||.012;
    const confidence=Number($('transcribeConfidence')?.value)||.82;
