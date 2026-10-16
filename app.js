@@ -1229,6 +1229,14 @@
     $('nudgePitchUp').onclick=()=>nudgeNote(1,0);$('nudgePitchDown').onclick=()=>nudgeNote(-1,0);$('nudgeBeatLeft').onclick=()=>nudgeNote(0,-st.grid);$('nudgeBeatRight').onclick=()=>nudgeNote(0,st.grid);$('notePitch').onchange=e=>changeNote('pitch',e.target.value);$('noteStart').onchange=e=>changeNote('start',e.target.value);$('noteDur').onchange=e=>changeNote('dur',e.target.value);$('deleteNote').onclick=deleteNote;$('playNote').onclick=playOne;
     $('gridStep').onchange=e=>{st.grid=NOTE_GRID_VALUES.includes(+e.target.value)?+e.target.value:.125;checkpoint();renderInspector();if(st.grid<=.125&&st.zoom<1.5)st.zoom=1.5;resizeCanvas();updateZoom();message(`細かさを ${st.grid}拍にしました。`,2000);};
     $('groupSelectMode').onclick=()=>{groupMode=!groupMode;groupIds.clear();marquee=null;autoPickMode=false;renderGroupStatus();drawCanvas();};
+    $('selectAllNotes').onclick=()=>{
+      const notes=getSection().notes;
+      if(!notes.length){message('このタブには選択できる音符がありません。');return;}
+      groupMode=true;marquee=null;autoPickMode=false;
+      groupIds=new Set(notes.map(n=>n.id));selectedNote=notes[0].id;
+      renderGroupStatus();renderInspector();drawCanvas();
+      message('このタブの '+groupIds.size+' 音をすべて選択しました。');
+    };
     $('clearGroup').onclick=clearGroup;$('deleteGroup').onclick=deleteGroup;
     $('copySelectedNotes').onclick=()=>copyNotesToClipboard(false);
     $('cutSelectedNotes').onclick=()=>copyNotesToClipboard(true);
