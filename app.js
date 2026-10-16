@@ -486,6 +486,27 @@
     const sec=60/st.bpm;const list=chords.map(c=>({at:(c.beat-b.start)*sec,dur:c.duration*sec*.9,pitches:c.pitches.map(n=>n+12),velocity:c.velocity||1}));
     playNativeBlob(renderNativeBlob([],list,Math.max(.8,b.length*sec)),`「${b.section.name}」のコードだけを試聴`);
   }
+  // Independent chord audition from the editor, unaffected by the chordAlong mix toggle.
+  // Every preview uses the same beat origin as melody playback, so the selected note
+  // and the chord arrangement stay synchronized.
+  function playEditorChords(mode){
+    stopPlay();stopChordPreview();
+    const proj=projectEvents(),block=proj.blocks.find(b=>b.section.id===st.selectedSection);
+    if(!block)return message('先にブロックを選択してください。');
+    if(mode==='selected'&&!getNote())return message('ピアノロールで再生開始位置の音符を選択してください。');
+    const startBeat=mode==='all'?0:mode==='selected'?block.start+getNote().start:block.start;
+    const endBeat=mode==='section'?block.start+block.length:proj.totalBeats;
+    if(endBeat<=startBeat)return message('再生する範囲がありません。');
+    const events=rhythmChords(chordTimelineEvents(proj,startBeat,endBeat,mode==='section'),proj)
+      .filter(c=>c.beat+c.duration>startBeat&&c.beat<endBeat);
+    if(!events.length)return message('この範囲にコードがありません。コード進行を設定してください。');
+    const bp=60/st.bpm,seconds=(endBeat-startBeat)*bp;
+    if(seconds>900)return message('コードの試聴は15分以内にしてください。');
+    const notes=events.map(c=>({at:Math.max(0,c.beat-startBeat)*bp,dur:Math.min(c.duration,c.beat+c.duration-startBeat)*bp*.9,pitches:c.pitches.map(n=>n+12),velocity:c.velocity||1}));
+    try{playNativeBlob(renderNativeBlob([],notes,Math.max(.5,seconds),false),'コード進行を試聴');
+      message('♫ '+(mode==='all'?'曲全体':mode==='section'?'このブロック':'選択した音の位置から')+'のコード進行を再生しています。',3000);
+    }catch(e){message('コード再生エラー：'+e.message,6500);}
+  }
   function bindChordTimeline(){for(let i=1;i<=7;i++)$('chordClipDegree').add(new Option(i+'度',i));for(const q of CHORD_QUALITIES)$('chordClipQuality').add(new Option(CHORD_QUALITY_TEXT[q],q));
     $('chordLaneZoom').onchange=e=>{chordLanePixels=Number(e.target.value)||25;renderChordTimeline();};
     $('insertIntro').onclick=()=>insertInstrumental('イントロ');$('insertInterlude').onclick=()=>insertInstrumental('間奏');$('insertOutro').onclick=()=>insertInstrumental('アウトロ');
@@ -937,6 +958,8 @@
     $('projectTitle').oninput=e=>{st.title=e.target.value.slice(0,80);saveSoon();};$('projectTitle').onchange=checkpoint;
     $('bpm').onchange=e=>{st.bpm=num(e.target.value,40,240,100);e.target.value=st.bpm;checkpoint();renderAll();};$('beats').onchange=e=>{st.beats=Number(e.target.value);checkpoint();renderAll();};$('soundType').onchange=e=>{st.sound=e.target.value;checkpoint();};$('masterVolume').oninput=e=>{st.volume=num(e.target.value,0,100);$('volumeReadout').textContent=st.volume+'%';saveSoon();};$('masterVolume').onchange=checkpoint;$('audioEngine').value=outputMode;$('audioEngine').onchange=e=>{stopPlay();stopChordPreview();releaseNative();outputMode=e.target.value;$('audioStatus').textContent=outputMode==='native'?'音声：音声ファイル方式（iPad向け）':'音声：Web Audio方式（未確認）';message('再生方式を変更しました。「中央のド」で確認してください。');};$('audioStatus').textContent=useNative()?'音声：音声ファイル方式（iPad向け）':'音声：未確認';
     $('metroToggle').onchange=e=>{st.metro=e.target.checked;checkpoint();};$('snapKey').onchange=e=>{st.snap=e.target.checked;checkpoint();};
+    $('editorPlayAll').onclick=()=>startPlay('all');$('editorPlaySection').onclick=()=>startPlay('section');$('editorPlaySelected').onclick=()=>startPlay('selected');$('editorStop').onclick=()=>{stopPlay();stopChordPreview();};
+    $('editorChordAll').onclick=()=>playEditorChords('all');$('editorChordSection').onclick=()=>playEditorChords('section');$('editorChordSelected').onclick=()=>playEditorChords('selected');
     $('playAll').onclick=()=>startPlay('all');$('playSection').onclick=()=>startPlay('section');$('playArrangement').onclick=()=>startPlay('all');$('playFromSelected').onclick=()=>startPlay('selected');$('playFromInspector').onclick=()=>startPlay('selected');$('stop').onclick=stopPlay;$('practiceMetro').onclick=()=>practice?stopPlay():startPlay('metro');
     $('addSection').onclick=addSection;$('duplicateSection').onclick=()=>sectionDuplicate(st.selectedSection);
     $('sectionList').onclick=e=>{const btn=e.target.closest('[data-action]');if(!btn)return;const id=btn.closest('[data-id]')?.dataset.id;if(!id)return;switch(btn.dataset.action){case'select':selectSection(id);break;case'up':sectionReorder(id,-1);break;case'down':sectionReorder(id,1);break;case'copy':sectionDuplicate(id);break;case'delete':removeSection(id);break;}};
