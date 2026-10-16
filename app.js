@@ -111,7 +111,43 @@
   const isIOS=/iPad|iPhone|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   let outputMode=isIOS?'native':'web';let nativePlayer=null,nativeURL=null;
   const useNative=()=>outputMode==='native';
-  function releaseNative(){if(nativePlayer){nativePlayer.pause();nativePlayer.removeAttribute('src');nativePlayer.load();$('pulseDots').querySelectorAll('span').forEach(x=>x.classList.remove('on'));}if(nativeURL){URL.revokeObjectURL(nativeURL);nativeURL=null;}}
+  // Playback position is shared by Web Audio and iPad's native WAV player.
+  let nativeCursor=null,nativeCursorFrame=0;
+  function stopNativeCursor(){cancelAnimationFrame(nativeCursorFrame);nativeCursorFrame=0;nativeCursor=null;drawCanvas();}
+  function playbackCursorBeat(){
+    if(nativeCursor&&nativePlayer&&!nativePlayer.paused&&nativePlayer.readyState>=2)
+      return nativeCursor.startBeat+nativePlayer.currentTime*st.bpm/60;
+    if(playing&&ctx2&&!playing.practice&&playing.highlightSection)
+      return playing.baseBeat+Math.max(0,ctx2.currentTime-playing.audioStart)*st.bpm/60;
+    return null;
+  }
+  function drawPlaybackCursor(ctx,section,scrollX,scrollY,width,height,px){
+    const absoluteBeat=playbackCursorBeat();if(absoluteBeat===null)return;
+    const block=timeline().blocks.find(b=>b.section.id===section.id);
+    if(!block)return;
+    const local=absoluteBeat-block.start;
+    if(local<0||local>block.length)return;
+    const x=LEFT+local*px;
+    if(x<scrollX||x>scrollX+width)return;
+    ctx.save();
+    ctx.fillStyle='rgba(255,145,38,.14)';
+    ctx.fillRect(x-4,scrollY,8,height);
+    ctx.strokeStyle='#ff941f';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(x,scrollY);ctx.lineTo(x,scrollY+height);ctx.stroke();
+    ctx.fillStyle='#ff941f';ctx.beginPath();ctx.moveTo(x-7,scrollY);ctx.lineTo(x+7,scrollY);ctx.lineTo(x,scrollY+12);ctx.closePath();ctx.fill();
+    ctx.restore();
+    // Follow horizontally only when the cursor is leaving the visible area.
+    const viewX=x-scrollX;
+    if(viewX>width*.86||viewX<LEFT-5){
+      viewport.scrollLeft=Math.max(0,x-width*.32);
+    }
+  }
+  function tickNativeCursor(){
+    if(!nativeCursor||!nativePlayer||nativePlayer.paused||nativePlayer.ended){nativeCursorFrame=0;drawCanvas();return;}
+    drawCanvas();nativeCursorFrame=requestAnimationFrame(tickNativeCursor);
+  }
+
+  function releaseNative(){stopNativeCursor();if(nativePlayer){nativePlayer.pause();nativePlayer.removeAttribute('src');nativePlayer.load();$('pulseDots').querySelectorAll('span').forEach(x=>x.classList.remove('on'));}if(nativeURL){URL.revokeObjectURL(nativeURL);nativeURL=null;}}
   function playNativeBlob(blob,label){
     releaseNative();if(!nativePlayer){nativePlayer=document.createElement('audio');nativePlayer.preload='auto';nativePlayer.setAttribute('playsinline','');nativePlayer.style.display='none';document.body.appendChild(nativePlayer);}
     nativeURL=URL.createObjectURL(blob);nativePlayer.src=nativeURL;nativePlayer.volume=1;
@@ -121,7 +157,7 @@
       const dots=[...$('pulseDots').children],i=Math.floor(sec*st.bpm/60)%st.beats;
       dots.forEach((dot,index)=>dot.classList.toggle('on',i===index));};
     if(promise&&typeof promise.catch==='function')promise.catch(e=>{$('audioStatus').textContent='音声：再生が拒否されました';message('音が鳴りません：'+e.message+'。Safariで再度再生ボタンを押してください。',7000);});
-    nativePlayer.onended=()=>{$('audioStatus').textContent='音声：再生終了（音声ファイル方式）';$('pulseDots').querySelectorAll('span').forEach(x=>x.classList.remove('on'));};
+    nativePlayer.onended=()=>{stopNativeCursor();$('audioStatus').textContent='音声：再生終了（音声ファイル方式）';$('pulseDots').querySelectorAll('span').forEach(x=>x.classList.remove('on'));};
     if(label)message('♪ '+label,1400);
   }
   // Offline soft acoustic-piano approximation. All sounds are synthesized locally;
@@ -194,6 +230,11 @@
     const total=mode==='metro'?st.beats*4*bp:mode==='preset'?Math.max(st.beats*bp,...notes.map(n=>n.at+n.dur)):Math.max(limit*bp,...notes.map(n=>n.at+n.dur),0);
     if(total>900){message('試聴は15分までです。');return;}
     playNativeBlob(renderNativeBlob(notes,chords,Math.max(.5,total),mode==='metro'||st.metro),'曲を試聴');
+    if(mode!=='metro'&&mode!=='preset'){
+      nativeCursor={startBeat};cancelAnimationFrame(nativeCursorFrame);
+      const begin=()=>{if(nativeCursor&&!nativePlayer.paused)nativeCursorFrame=requestAnimationFrame(tickNativeCursor);};
+      if(nativePlayer.paused)nativePlayer.addEventListener('playing',begin,{once:true});else begin();
+    }
     if(mode==='metro')message('メトロノーム4小節を再生（再度押すと繰り返せます）',3100);
   }
   
@@ -778,8 +819,7 @@
     if(autoPickMode||autoRange.sectionId===s.id){const r=autoSelectedRange(),a=LEFT+r.start*px,b=LEFT+r.end*px;
       ctx.fillStyle=autoPickMode?'#9aeecc31':'#ad94ff1e';ctx.fillRect(a,sy,Math.max(2,b-a),H);
       ctx.lineWidth=2;ctx.strokeStyle='#a0ead9';for(const xx of [a,b]){if(xx<sx||xx>xEnd)continue;ctx.beginPath();ctx.moveTo(xx,sy);ctx.lineTo(xx,yEnd);ctx.stroke();}}
-    if(playing&&playing.highlightSection===s.id){const beat=(ctx2.currentTime-playing.audioStart)*(st.bpm/60)-playing.sectionStartBeat,x=LEFT+beat*px;
-      if(x>=sx&&x<xEnd){ctx.strokeStyle='#ffd792';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,sy);ctx.lineTo(x,yEnd);ctx.stroke();}}
+    drawPlaybackCursor(ctx,s,sx,sy,W,H,px);
     // Fixed piano labels remain on the left while scrolling the melody.
     ctx.fillStyle='#12192aef';ctx.fillRect(sx,sy,LEFT,H);
     for(let p=lo;p<=hi;p++){
